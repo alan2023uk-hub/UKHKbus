@@ -8,8 +8,12 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- apple-mobile-web-app-capable intentionally omitted: when present, iOS
+     treats every home-screen icon from this origin as ONE shared standalone
+     app instance, so opening any icon resumes whatever page was last open
+     (this is what caused the 493/156 mix-up). Without it, each "Add to Home
+     Screen" icon opens as a normal Safari tab pinned to its own saved URL,
+     so 493, 156, and any custom bundle stay independent. -->
 <meta name="apple-mobile-web-app-title" content="UKHKbus" id="appTitleMeta">
 <style>
   :root{
