@@ -2,7 +2,7 @@
 // 只快取 app shell (HTML/manifest/icons)；KMB 同 TfL 嘅即時查詢
 // 一律直接放行,唔做快取,保證睇到嘅永遠係最新資料。
 
-const CACHE_NAME = "multicitybus-shell-v5";
+const CACHE_NAME = "multicitybus-shell-v4";
 const SHELL_FILES = [
   "./index.html",
   "./manifest.json",
