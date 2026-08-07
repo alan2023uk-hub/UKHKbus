@@ -258,6 +258,14 @@
     background:var(--panel);border:1px solid var(--line);border-radius:12px;
     padding:14px 15px;display:flex;align-items:center;gap:12px;
   }
+  .watch-item.selected{border-color:var(--amber);}
+  .watch-item .wi-check{
+    flex-shrink:0;width:24px;height:24px;border-radius:7px;
+    border:1.5px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;color:var(--amber);cursor:pointer;
+  }
+  .watch-item.selected .wi-check{background:rgba(255,179,0,0.15);border-color:var(--amber);}
   .watch-item .wi-main{flex:1;min-width:0;}
   .watch-item .wi-route{font-size:16.5px;font-weight:700;}
   .watch-item .wi-sub{font-size:13.5px;color:var(--text-dim);margin-top:2px;
@@ -292,6 +300,22 @@
     padding:10px 18px calc(14px + env(safe-area-inset-bottom)) 18px;
     color:var(--text-faint);font-size:13.5px;text-align:center;
   }
+
+  .select-bar{
+    display:none;
+    align-items:center;justify-content:space-between;gap:10px;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+    padding:11px 13px;margin-bottom:2px;
+  }
+  .select-bar .sb-count{font-size:14.5px;color:var(--text-dim);}
+  .select-bar .sb-actions{display:flex;gap:8px;}
+  .select-bar button{
+    padding:9px 13px;border-radius:9px;border:none;font-size:14.5px;font-weight:700;
+    font-family:var(--font-body);cursor:pointer;
+  }
+  .select-bar .sb-cancel{background:transparent;color:var(--text-dim);border:1px solid var(--line);}
+  .select-bar .sb-link{background:var(--amber);color:#0B0D0F;}
+  .select-bar .sb-link:disabled{opacity:0.4;}
 </style>
 </head>
 <body>
@@ -332,8 +356,16 @@
 
     <!-- 管理清單 -->
     <div class="flow-step active" id="step-manage">
-      <p class="flow-sub">撳路線右邊嘅 🔗 可以攞到嗰條路線專屬嘅網址，跟住用 Safari 分享 → 「加入主畫面」，就會建立一個淨係顯示嗰條路線嘅獨立捷徑。</p>
+      <p class="flow-sub">撳路線右邊嘅 🔗 可以攞到嗰條路線專屬嘅網址；撳「揀幾條砌埋一個捷徑」可以自訂一個捷徑包含你想要嘅幾條路線。跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</p>
       <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
+      <div class="select-bar" id="selectBar">
+        <span class="sb-count" id="selectCount">已揀 0 條</span>
+        <div class="sb-actions">
+          <button class="sb-cancel" id="selectCancelBtn">取消</button>
+          <button class="sb-link" id="selectLinkBtn" disabled>攞呢組捷徑</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="selectModeBtn">☑️ 揀幾條砌埋一個捷徑</button>
       <div class="stop-list" id="manageList"></div>
       <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
       <details>
@@ -414,16 +446,18 @@
   // 暫存緊「新增追蹤」流程行進中揀咗嘅嘢
   let draft = { city: null, routes: null, outbound: null, inbound: null };
 
-  // 網址帶住 ?watch=<id> 就代表呢個係「單一路線獨立捷徑」檢視，
-  // 淨係顯示嗰一條路線嘅去程／返程，唔顯示其他追蹤緊嘅路線
-  const focusWatchId = new URLSearchParams(location.search).get("watch");
+  // 網址帶住 ?watch=<id> 或 ?watch=<id1>,<id2>,... 就代表呢個係
+  // 「獨立捷徑」檢視，淨係顯示網址入面指定嘅路線（一條或者幾條砌埋一齊），
+  // 唔顯示其他追蹤緊但冇喺呢個捷徑入面嘅路線
+  const focusWatchIds = (new URLSearchParams(location.search).get("watch") || "")
+    .split(",").map(s => s.trim()).filter(Boolean);
 
-  function watchViewUrl(id){
+  function watchViewUrl(ids){
     const base = location.href.split("?")[0];
-    return base + "?watch=" + encodeURIComponent(id);
+    return base + "?watch=" + ids.map(encodeURIComponent).join(",");
   }
-  function goToWatchView(id){
-    location.href = watchViewUrl(id);
+  function goToWatchView(ids){
+    location.href = watchViewUrl(Array.isArray(ids) ? ids : [ids]);
   }
   function goToFullList(){
     location.href = location.href.split("?")[0];
@@ -555,23 +589,42 @@
   els.refreshBtn.addEventListener("click", refreshData);
   els.backToAllBtn.addEventListener("click", () => goToFullList());
 
+  let selectMode = false;
+  let selectedIds = new Set();
+
   function openManage(){
     els.flowHeaderTitle.textContent = "管理追蹤";
     els.appIdInput.value = settings.appId || "";
     els.appKeyInput.value = settings.appKey || "";
+    selectMode = false;
+    selectedIds = new Set();
     renderManageList();
     showFlowStep("step-manage");
     showFlow();
   }
 
+  function updateSelectBar(){
+    els.selectBar.style.display = selectMode ? "flex" : "none";
+    els.selectModeBtn.style.display = selectMode ? "none" : "block";
+    els.selectCount.textContent = "已揀 " + selectedIds.size + " 條";
+    els.selectLinkBtn.disabled = selectedIds.size === 0;
+  }
+
   function renderManageList(){
     els.manageList.innerHTML = "";
     els.manageEmptyHint.style.display = settings.watches.length === 0 ? "block" : "none";
+    updateSelectBar();
     settings.watches.forEach((w, idx) => {
       const div = document.createElement("div");
-      div.className = "watch-item";
+      div.className = "watch-item" + (selectMode && selectedIds.has(w.id) ? " selected" : "");
       const cityLabel = w.city === "hk" ? "🇭🇰 香港" : "🇬🇧 倫敦";
+      const checkHtml = selectMode
+        ? '<div class="wi-check">' + (selectedIds.has(w.id) ? "✓" : "") + '</div>'
+        : "";
+      const linkHtml = selectMode ? "" : '<div class="wi-link" title="攞獨立捷徑網址">🔗</div>';
+      const delHtml = selectMode ? "" : '<div class="wi-del">✕</div>';
       div.innerHTML =
+        checkHtml +
         '<div class="wi-main">' +
           '<div class="wi-route">' + escapeHtml(w.routes.join("、")) + '</div>' +
           '<div class="wi-sub">' + cityLabel +
@@ -579,20 +632,43 @@
             ' · ⬅️ ' + escapeHtml(w.inbound.stopName) +
           '</div>' +
         '</div>' +
-        '<div class="wi-link" title="攞獨立捷徑網址">🔗</div>' +
-        '<div class="wi-del">✕</div>';
-      div.querySelector(".wi-link").addEventListener("click", () => {
-        goToWatchView(w.id);
-      });
-      div.querySelector(".wi-del").addEventListener("click", () => {
-        settings.watches.splice(idx, 1);
-        saveSettings();
-        renderManageList();
-        refreshData();
-      });
+        linkHtml + delHtml;
+
+      if (selectMode){
+        div.addEventListener("click", () => {
+          if (selectedIds.has(w.id)) selectedIds.delete(w.id);
+          else selectedIds.add(w.id);
+          renderManageList();
+        });
+      } else {
+        const linkBtn = div.querySelector(".wi-link");
+        if (linkBtn) linkBtn.addEventListener("click", () => { goToWatchView([w.id]); });
+        const delBtn = div.querySelector(".wi-del");
+        if (delBtn) delBtn.addEventListener("click", () => {
+          settings.watches.splice(idx, 1);
+          saveSettings();
+          renderManageList();
+          refreshData();
+        });
+      }
       els.manageList.appendChild(div);
     });
   }
+
+  els.selectModeBtn.addEventListener("click", () => {
+    selectMode = true;
+    selectedIds = new Set();
+    renderManageList();
+  });
+  els.selectCancelBtn.addEventListener("click", () => {
+    selectMode = false;
+    selectedIds = new Set();
+    renderManageList();
+  });
+  els.selectLinkBtn.addEventListener("click", () => {
+    if (selectedIds.size === 0) return;
+    goToWatchView(Array.from(selectedIds));
+  });
 
   els.saveAdvancedBtn.addEventListener("click", () => {
     settings.appId = els.appIdInput.value.trim();
@@ -720,10 +796,10 @@
     let watchesToShow = settings.watches;
     let isFiltered = false;
 
-    if (focusWatchId){
+    if (focusWatchIds.length > 0){
       isFiltered = true;
-      const found = settings.watches.find(w => w.id === focusWatchId);
-      if (!found){
+      const found = settings.watches.filter(w => focusWatchIds.includes(w.id));
+      if (found.length === 0){
         els.mainTitle.textContent = "巴士";
         els.backToAllBtn.style.display = "flex";
         els.filterHint.style.display = "none";
@@ -735,14 +811,16 @@
           '</div>';
         return;
       }
-      watchesToShow = [found];
-      const routeLabel = found.routes.join("、");
+      watchesToShow = found;
+      const routeLabel = found.map(w => w.routes.join("、")).join(" / ");
       els.mainTitle.textContent = routeLabel;
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
       els.filterHint.style.display = "block";
-      els.filterHint.textContent = "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線";
+      els.filterHint.textContent = found.length === 1
+        ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
+        : "🔗 呢個係自訂捷徑，淨係顯示呢 " + found.length + " 條路線：" + routeLabel;
     } else {
       els.mainTitle.textContent = "巴士";
       els.backToAllBtn.style.display = "none";
