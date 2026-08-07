@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>多城巴士即時到站</title>
 <meta name="theme-color" content="#0B0D0F">
-<link rel="manifest" href="manifest.json">
+<!-- rel="manifest" intentionally removed: linking a Web App Manifest is what
+     makes Safari treat "Add to Home Screen" as installing a PWA, which shows
+     an "開啟為網頁 App" toggle that (when left on) launches icons via the
+     manifest's fixed start_url instead of the exact link that was shared —
+     dropping the ?d=... route data and causing icons to collide/overwrite
+     each other. Removing this tag stops Safari from offering that toggle at
+     all, so "Add to Home Screen" always creates a plain bookmark tied to the
+     exact URL on screen — no step for anyone to remember or get wrong.
+     Home-screen icon appearance still comes from apple-touch-icon below, so
+     nothing is lost visually by removing this. -->
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <!-- apple-mobile-web-app-capable intentionally omitted: when present, iOS
