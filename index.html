@@ -247,6 +247,18 @@
     font-family:var(--font-body);
   }
   input[type="text"]:focus{outline:1px solid var(--amber);}
+  select{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:13px;
+    border-radius:12px;
+    font-size:16px;
+    font-family:var(--font-body);
+  }
+  input[type="range"]{width:100%;accent-color:var(--amber);}
+  .voice-note{color:var(--text-dim);font-size:13.5px;line-height:1.5;}
   details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
   details summary{color:var(--text-dim);font-size:16.5px;cursor:pointer;}
   details .adv-fields{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
@@ -376,7 +388,7 @@
         <h1 id="mainTitle">巴士</h1>
       </div>
       <div class="header-actions">
-        <button class="icon-btn" id="speakAllBtn" title="廣東話播報到站時間" aria-label="播報">🔊</button>
+        <button class="icon-btn" id="speakAllBtn" title="廣東話播報到站時間" aria-label="播報">🗣️</button>
         <button class="icon-btn" id="backToAllBtn" title="返回全部路線" style="display:none;">☰</button>
         <button class="icon-btn" id="refreshBtn" title="立即刷新">⟳</button>
         <button class="icon-btn" id="manageBtn" title="管理追蹤">⚙</button>
@@ -388,7 +400,7 @@
         <span id="updatedLabel">—</span>
       </div>
       <div class="filter-hint" id="filterHint" style="display:none;"></div>
-      <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">🔊 複製「語音捷徑」網址（畀 iPhone 捷徑用）</button>
+      <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">🗣️ 複製「語音捷徑」網址（畀 iPhone 捷徑用）</button>
       <div class="group-list" id="groupList"></div>
     </main>
     <footer>資料來源：data.gov.hk（KMB）／ Transport for London（TfL）</footer>
@@ -417,6 +429,16 @@
       <button class="btn btn-ghost" id="selectModeBtn">☑️ 揀幾條砌埋一個捷徑</button>
       <div class="stop-list" id="manageList"></div>
       <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
+      <details id="voiceDetails">
+        <summary>播報語音設定（粵語・香港）</summary>
+        <div class="adv-fields">
+          <select id="voiceSelect"></select>
+          <div class="voice-note" id="voiceInfo"></div>
+          <div class="voice-note">語速：<span id="voiceRateLabel">1.00</span></div>
+          <input type="range" id="voiceRate" min="0.6" max="1.4" step="0.05" value="1">
+          <button class="btn btn-ghost" id="voiceTestBtn">▶ 試聽</button>
+        </div>
+      </details>
       <details>
         <summary>進階設定：TfL app_id / app_key（可選）</summary>
         <div class="adv-fields">
@@ -481,7 +503,7 @@
      所以由捷徑開 ?speak=1 嘅時候，會先顯示呢個大掣，撳一下就開始播報 -->
 <div id="speakOverlay">
   <div class="so-title" id="speakOverlayTitle">巴士</div>
-  <button class="so-big" id="speakOverlayBtn">🔊 撳一下播報</button>
+  <button class="so-big" id="speakOverlayBtn">🗣️ 撳一下播報</button>
   <button class="so-close" id="speakOverlayClose">唔使播報，直接睇畫面</button>
 </div>
 <div id="toast"></div>
@@ -591,14 +613,18 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
       if (parsed && Array.isArray(parsed.watches)){
+        const rate = (typeof parsed.speechRate === "number" && isFinite(parsed.speechRate))
+          ? Math.min(1.5, Math.max(0.5, parsed.speechRate)) : null;
         return {
           appId: typeof parsed.appId === "string" ? parsed.appId : "",
           appKey: typeof parsed.appKey === "string" ? parsed.appKey : "",
+          voiceUri: typeof parsed.voiceUri === "string" ? parsed.voiceUri : "",
+          speechRate: rate,
           watches: parsed.watches.map(sanitizeWatch).filter(Boolean),
         };
       }
     }catch(e){}
-    return { appId:"", appKey:"", watches:[] };
+    return { appId:"", appKey:"", voiceUri:"", speechRate:null, watches:[] };
   }
   // 私隱模式或者儲存空間滿咗，localStorage.setItem 會 throw。
   // 呢度接住，回傳 true／false，並且每次開頁面最多提示一次。
@@ -753,14 +779,46 @@
   }
 
   function normLang(v){ return (v.lang || "").replace("_", "-").toLowerCase(); }
+  // 粵語（香港）語音：iOS 係 zh-HK，部分 Android／Chrome 係 yue-HK
+  function isCantonese(v){
+    const n = normLang(v);
+    return n === "zh-hk" || n === "zh-hant-hk" || n.startsWith("yue")
+        || /cantonese|粵|廣東|广东/i.test(v.name || "");
+  }
+  // 名稱有 Premium／Enhanced（優質／增強）嘅排前面
+  function voiceScore(v){
+    const n = v.name || "";
+    if (/premium|優質|高品質/i.test(n)) return 3;
+    if (/enhanced|增強|加強/i.test(n)) return 2;
+    return 0;
+  }
+  function cantoneseVoices(){
+    if (!SPEECH_OK) return [];
+    return (speechSynthesis.getVoices() || []).filter(isCantonese)
+      .sort((a, b) => voiceScore(b) - voiceScore(a));
+  }
+  // 設定優先；獨立捷徑可能攞唔到 localStorage，所以網址嘅 vn／vr 做後備
+  const urlVoiceUri = urlParams.get("vn") || "";
+  const urlRateNum = parseFloat(urlParams.get("vr"));
+  function effectiveVoiceUri(){ return settings.voiceUri || urlVoiceUri; }
+  function effectiveRate(){
+    if (typeof settings.speechRate === "number") return settings.speechRate;
+    if (isFinite(urlRateNum)) return Math.min(1.5, Math.max(0.5, urlRateNum));
+    return 1;
+  }
+
   function findVoice(kind){
     if (!SPEECH_OK) return null;
     const voices = speechSynthesis.getVoices() || [];
     if (kind === "yue"){
-      // iOS 用 zh-HK；Android／Chrome 有時用 yue-HK
-      return voices.find(v => normLang(v) === "zh-hk")
-          || voices.find(v => normLang(v).startsWith("yue"))
-          || null;
+      // 1) 用戶喺設定揀咗指定語音（或者捷徑網址帶咗 vn=）就用嗰個
+      const uri = effectiveVoiceUri();
+      if (uri){
+        const chosen = voices.find(v => v.voiceURI === uri);
+        if (chosen) return chosen;
+      }
+      // 2) 否則自動揀質素最高嘅粵語（香港）語音
+      return cantoneseVoices()[0] || null;
     }
     return voices.find(v => normLang(v) === "en-gb")
         || voices.find(v => normLang(v).startsWith("en"))
@@ -771,6 +829,7 @@
     const v = findVoice(kind);
     if (v){ u.voice = v; u.lang = v.lang; }
     else { u.lang = kind === "yue" ? "zh-HK" : "en-GB"; }
+    u.rate = effectiveRate();
     return u;
   }
 
@@ -811,10 +870,10 @@
 
   function setSpeakingUi(on){
     els.speakAllBtn.classList.toggle("speaking", on);
-    els.speakAllBtn.textContent = on ? "⏹" : "🔊";
+    els.speakAllBtn.textContent = on ? "⏹" : "🗣️";
     document.querySelectorAll(".speak-btn").forEach(b => {
       b.classList.toggle("speaking", on);
-      b.textContent = on ? "⏹" : "🔊";
+      b.textContent = on ? "⏹" : "🗣️";
     });
   }
   function stopSpeech(){
@@ -911,9 +970,54 @@
   function speakUrl(){
     const u = new URL(location.href);
     u.searchParams.set("speak", "1");
+    // 將你揀嘅語音同語速一齊帶入網址，獨立捷徑攞唔到 localStorage 都讀得啱
+    if (settings.voiceUri) u.searchParams.set("vn", settings.voiceUri);
+    if (typeof settings.speechRate === "number") u.searchParams.set("vr", String(settings.speechRate));
     u.hash = "";
     return u.toString();
   }
+  // ----- 播報語音設定（管理畫面）-----
+  function populateVoiceSelect(){
+    if (!SPEECH_OK){
+      els.voiceDetails.style.display = "none";
+      return;
+    }
+    const voices = cantoneseVoices();
+    els.voiceSelect.innerHTML = '<option value="">自動（揀質素最高嘅粵語語音）</option>' +
+      voices.map(v => '<option value="' + escapeHtml(v.voiceURI) + '">' +
+        escapeHtml((v.name || "語音") + " · " + v.lang) + '</option>').join("");
+    els.voiceSelect.value = settings.voiceUri || "";
+    if (els.voiceSelect.value !== (settings.voiceUri || "")) els.voiceSelect.value = "";
+    els.voiceInfo.textContent = voices.length > 0
+      ? "搵到 " + voices.length + " 個粵語（香港）語音。只會列出你部機已經安裝嘅語音。"
+      : "未搵到粵語（香港）語音。iPhone 可以去「設定」→「輔助使用」→「朗讀內容」→「聲音」→「粵語」下載（大致路徑，視乎 iOS 版本）。";
+    const rate = effectiveRate();
+    els.voiceRate.value = String(rate);
+    els.voiceRateLabel.textContent = rate.toFixed(2);
+  }
+  if (SPEECH_OK){
+    els.voiceSelect.addEventListener("change", () => {
+      settings.voiceUri = els.voiceSelect.value;
+      saveSettings();
+    });
+    els.voiceRate.addEventListener("input", () => {
+      els.voiceRateLabel.textContent = parseFloat(els.voiceRate.value).toFixed(2);
+    });
+    els.voiceRate.addEventListener("change", () => {
+      settings.speechRate = parseFloat(els.voiceRate.value);
+      saveSettings();
+    });
+    els.voiceTestBtn.addEventListener("click", () => {
+      if (speechActive){ stopSpeech(); return; }
+      speechSynthesis.cancel();
+      const u = makeUtterance("你好，呢個係粵語播報測試。一三一 號線，3 分鐘後到站。", "yue");
+      speechSynthesis.speak(u);
+    });
+    if (typeof speechSynthesis.addEventListener === "function"){
+      speechSynthesis.addEventListener("voiceschanged", populateVoiceSelect);
+    }
+  }
+
   els.copySpeakUrlBtn.addEventListener("click", async () => {
     const url = speakUrl();
     try{
@@ -953,6 +1057,7 @@
     selectMode = false;
     selectedIds = new Set();
     renderManageList();
+    populateVoiceSelect();
     showFlowStep("step-manage");
     showFlow();
   }
@@ -1293,7 +1398,7 @@
       cardEl.className = "group-card";
       // 每個追蹤只喺「去程」卡放一個播報掣，播報時會同時讀去程同回程
       const speakBtnHtml = (SPEECH_OK && card.leg === "outbound")
-        ? '<button class="speak-btn' + (speechActive ? " speaking" : "") + '" title="播報呢條路線" aria-label="播報">' + (speechActive ? "⏹" : "🔊") + '</button>'
+        ? '<button class="speak-btn' + (speechActive ? " speaking" : "") + '" title="播報呢條路線" aria-label="播報">' + (speechActive ? "⏹" : "🗣️") + '</button>'
         : "";
 
       let rowsHtml = "";
