@@ -259,11 +259,6 @@
   }
   input[type="range"]{width:100%;accent-color:var(--amber);}
   .voice-note{color:var(--text-dim);font-size:13.5px;line-height:1.5;}
-  .voice-diag{
-    display:none;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;
-    font-size:12px;line-height:1.5;color:var(--text-dim);
-    background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px;
-  }
   .preset-row{display:flex;gap:8px;}
   .preset-row .btn{padding:11px 6px;font-size:15px;}
   details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
@@ -430,7 +425,6 @@
       </div>
       <div class="filter-hint" id="filterHint" style="display:none;"></div>
       <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">🗣️ 複製「撳一下播報」網址</button>
-      <button class="btn btn-ghost" id="copySayUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">📲 複製「交畀 iPhone 捷徑朗讀」網址</button>
       <div class="group-list" id="groupList"></div>
     </main>
     <footer>資料來源：data.gov.hk（KMB）／ Transport for London（TfL）</footer>
@@ -474,8 +468,6 @@
             <button class="btn btn-ghost" id="presetYounger">更年輕</button>
           </div>
           <button class="btn btn-ghost" id="voiceTestBtn">▶ 試聽</button>
-          <button class="btn btn-ghost" id="voiceDiagBtn" style="padding:11px;font-size:14.5px;">🔍 診斷：列出瀏覽器睇到嘅全部語音</button>
-          <div class="voice-diag" id="voiceDiag"></div>
         </div>
       </details>
       <details>
@@ -1081,7 +1073,13 @@
       els.voiceDetails.style.display = "none";
       return;
     }
-    const voices = chineseVoices();
+    // 每個地區（粵語／台灣／大陸／其他）只保留第一個（質素最高）語音
+    const seenGroup = {};
+    const voices = chineseVoices().filter(v => {
+      const g = voiceGroup(v);
+      if (seenGroup[g]) return false;
+      return (seenGroup[g] = true);
+    });
     const labels = voices.map(v => {
       const q = voiceQuality(v);
       return (v.name || "語音") + (q ? " · " + q : "") + " · " + v.lang;
@@ -1107,7 +1105,7 @@
     els.voiceSelect.value = settings.voiceUri || "";
     if (els.voiceSelect.value !== (settings.voiceUri || "")) els.voiceSelect.value = "";
     els.voiceInfo.textContent = voices.length > 0
-      ? "搵到 " + voices.length + " 個中文語音（只會列出你部機已安裝嘅）。揀粵語會用廣東話口語讀稿，揀台灣／普通話會用國語讀稿。"
+      ? "每個地區各列一個語音（只會列出你部機已安裝嘅）。揀粵語會用廣東話口語讀稿，揀台灣／普通話會用國語讀稿。"
       : "未搵到中文語音。iPhone 可以去「設定」→「輔助使用」→「朗讀內容」→「聲音」→「中文」下載粵語、台灣或普通話（大致路徑，視乎 iOS 版本）。";
     const rate = effectiveRate();
     els.voiceRate.value = String(rate);
@@ -1144,16 +1142,6 @@
     els.voicePitch.addEventListener("change", () => {
       settings.speechPitch = parseFloat(els.voicePitch.value);
       saveSettings();
-    });
-    els.voiceDiagBtn.addEventListener("click", () => {
-      const voices = speechSynthesis.getVoices() || [];
-      const lines = voices.map(v => [
-        v.name, v.lang, v.voiceURI,
-        v.localService ? "local" : "remote",
-        v.default ? "default" : ""
-      ].filter(Boolean).join(" | "));
-      els.voiceDiag.textContent = "共 " + voices.length + " 個語音\n" + lines.join("\n");
-      els.voiceDiag.style.display = "block";
     });
     els.presetNatural.addEventListener("click", () => applyPreset(1.0, 1.0));
     els.presetYoung.addEventListener("click", () => applyPreset(1.2, 1.1));
@@ -1230,29 +1218,6 @@
   });
   els.sayCloseBtn.addEventListener("click", () => {
     els.sayOverlay.style.display = "none";
-  });
-
-  function sayUrl(name){
-    const u = new URL(location.href);
-    u.searchParams.delete("speak");
-    u.searchParams.set("say", name);
-    u.hash = "";
-    return u.toString();
-  }
-  els.copySayUrlBtn.addEventListener("click", async () => {
-    const def = settings.shortcutName ||
-      ("播報" + shownWatches.map(w => w.routes.join("")).join(""));
-    const name = window.prompt("你喺「捷徑」app 入面嗰個捷徑叫咩名？（要完全一樣，包括大細楷）", def);
-    if (!name || !name.trim()) return;
-    settings.shortcutName = name.trim().slice(0, 40);
-    saveSettings();
-    const url = sayUrl(settings.shortcutName);
-    try{
-      await navigator.clipboard.writeText(url);
-      showToast("已複製，貼入捷徑嘅「打開 URL」");
-    }catch(e){
-      window.prompt("複製呢個網址：", url);
-    }
   });
 
   // ===================== 畫面切換 =====================
@@ -1515,7 +1480,6 @@
     let watchesToShow = settings.watches;
     let isFiltered = false;
     els.copySpeakUrlBtn.style.display = "none";
-    els.copySayUrlBtn.style.display = "none";
 
     if (focusWatches && focusWatches.length > 0){
       // 呢個捷徑嘅路線資料已經直接編碼喺網址度，唔使查 localStorage，
@@ -1529,7 +1493,6 @@
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
       els.copySpeakUrlBtn.style.display = "block";
-      els.copySayUrlBtn.style.display = "block";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = focusWatches.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
@@ -1559,7 +1522,6 @@
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
       els.copySpeakUrlBtn.style.display = "block";
-      els.copySayUrlBtn.style.display = "block";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = found.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
