@@ -460,7 +460,7 @@
       <div class="stop-list" id="manageList"></div>
       <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
       <details id="voiceDetails">
-        <summary>播報語音設定（粵語・香港）</summary>
+        <summary>播報語音設定（粵語／國語／台灣）</summary>
         <div class="adv-fields">
           <select id="voiceSelect"></select>
           <div class="voice-note" id="voiceInfo"></div>
@@ -839,6 +839,21 @@
     return n === "zh-hk" || n === "zh-hant-hk" || n.startsWith("yue")
         || /cantonese|粵|廣東|广东/i.test(v.name || "");
   }
+  function isChinese(v){
+    const n = normLang(v);
+    return n.startsWith("zh") || n.startsWith("yue") || n.startsWith("cmn")
+        || /chinese|中文|普通話|普通话|國語|国语|cantonese|粵|廣東|广东|台灣|台湾/i.test(v.name || "");
+  }
+  // 分組：yue＝粵語（香港）、tw＝國語（台灣）、cn＝普通話（大陸）、other＝其他中文
+  function voiceGroup(v){
+    if (isCantonese(v)) return "yue";
+    const n = normLang(v);
+    if (n === "zh-tw" || n === "zh-hant-tw" || n.startsWith("zh-hant")) return "tw";
+    if (n === "zh-cn" || n === "zh-hans-cn" || n.startsWith("zh-hans") || n.startsWith("cmn") || n === "zh") return "cn";
+    return "other";
+  }
+  const GROUP_ORDER = ["yue", "tw", "cn", "other"];
+  const GROUP_LABEL = { yue:"粵語（香港）", tw:"國語（台灣）", cn:"普通話（大陸）", other:"其他中文" };
   // 名稱有 Premium／Enhanced（優質／增強）嘅排前面
   function voiceScore(v){
     const n = (v.name || "") + " " + (v.voiceURI || "");
@@ -854,11 +869,13 @@
     if (/compact|標準/.test(n)) return "標準";
     return "";
   }
-  function cantoneseVoices(){
+  function chineseVoices(){
     if (!SPEECH_OK) return [];
-    return (speechSynthesis.getVoices() || []).filter(isCantonese)
-      .sort((a, b) => voiceScore(b) - voiceScore(a));
+    return (speechSynthesis.getVoices() || []).filter(isChinese)
+      .sort((a, b) => (GROUP_ORDER.indexOf(voiceGroup(a)) - GROUP_ORDER.indexOf(voiceGroup(b)))
+                      || (voiceScore(b) - voiceScore(a)));
   }
+  function cantoneseVoices(){ return chineseVoices().filter(isCantonese); }
   // 設定優先；獨立捷徑可能攞唔到 localStorage，所以網址嘅 vn／vr 做後備
   const urlVoiceUri = urlParams.get("vn") || "";
   const urlRateNum = parseFloat(urlParams.get("vr"));
@@ -878,27 +895,32 @@
   function findVoice(kind){
     if (!SPEECH_OK) return null;
     const voices = speechSynthesis.getVoices() || [];
-    if (kind === "yue"){
+    if (kind === "zh"){
       // 1) 用戶喺設定揀咗指定語音（或者捷徑網址帶咗 vn=）就用嗰個
       const uri = effectiveVoiceUri();
       if (uri){
         const chosen = voices.find(v => v.voiceURI === uri);
         if (chosen) return chosen;
       }
-      // 2) 否則自動揀質素最高嘅粵語（香港）語音
-      return cantoneseVoices()[0] || null;
+      // 2) 自動：粵語（香港）優先，其次台灣國語，再其次普通話；同組揀質素最高
+      return chineseVoices()[0] || null;
     }
     return voices.find(v => normLang(v) === "en-gb")
         || voices.find(v => normLang(v).startsWith("en"))
         || null;
   }
+  // 目前中文語音係咪粵語：決定讀稿用粵語口語定書面國語
+  function speechMode(){
+    const v = findVoice("zh");
+    return (!v || isCantonese(v)) ? "yue" : "cmn";
+  }
   function makeUtterance(text, kind){
     const u = new SpeechSynthesisUtterance(text);
     const v = findVoice(kind);
     if (v){ u.voice = v; u.lang = v.lang; }
-    else { u.lang = kind === "yue" ? "zh-HK" : "en-GB"; }
+    else { u.lang = kind === "zh" ? "zh-HK" : "en-GB"; }
     u.rate = effectiveRate();
-    if (kind === "yue") u.pitch = effectivePitch();   // 音調淨係調粵語；英文站名語音保持原狀
+    if (kind === "zh") u.pitch = effectivePitch();   // 音調淨係調中文；英文站名語音保持原狀
     return u;
   }
 
@@ -910,28 +932,30 @@
   function isLatinName(name){
     return /[A-Za-z]/.test(name) && !/[\u3400-\u9fff]/.test(name);
   }
-  function etaPhrase(buses, multiRoute){
+  function etaPhrase(buses, multiRoute, mode){
     if (buses === null || buses === undefined) return "讀取失敗";
-    if (buses.length === 0) return "暫時冇班次";
+    if (buses.length === 0) return mode === "cmn" ? "暫時沒有班次" : "暫時冇班次";
     const b = buses[0];
     const t = b.mins <= 0 ? "即將到站" : (b.mins + " 分鐘後到站");
     return (multiRoute ? spokenRoute(b.route) + " 號線，" : "") + t;
   }
 
-  // 組合成一串 {t: 文字, k: "yue"|"en"}；英文站名用英文語音讀，其餘用粵語
-  function buildSegments(entries){
+  // 組合成一串 {t: 文字, k: "zh"|"en"}；英文站名用英文語音讀，其餘用中文語音
+  // mode："yue" 粵語口語；"cmn" 國語（台灣／大陸）書面語
+  function buildSegments(entries, mode){
+    mode = mode || speechMode();
     const segs = [];
     entries.forEach(e => {
       const multi = e.watch.routes.length > 1;
-      segs.push({ t: e.watch.routes.map(spokenRoute).join("、") + " 號線。", k: "yue" });
+      segs.push({ t: e.watch.routes.map(spokenRoute).join("、") + " 號線。", k: "zh" });
       [["outbound", "去程", e.out], ["inbound", "回程", e.inn]].forEach(([leg, label, buses]) => {
         const name = (e.watch[leg] && e.watch[leg].stopName) || "";
-        segs.push({ t: label + "，", k: "yue" });
+        segs.push({ t: label + "，", k: "zh" });
         if (name){
           if (isLatinName(name)) segs.push({ t: name + ",", k: "en" });
-          else segs.push({ t: name + "，", k: "yue" });
+          else segs.push({ t: name + "，", k: "zh" });
         }
-        segs.push({ t: etaPhrase(buses, multi) + "。", k: "yue" });
+        segs.push({ t: etaPhrase(buses, multi, mode) + "。", k: "zh" });
       });
     });
     return segs;
@@ -1000,8 +1024,8 @@
       speechActive = false;
       setSpeakingUi(false);
       const voices = speechSynthesis.getVoices() || [];
-      if (voices.length > 0 && !findVoice("yue")){
-        showToast("未搵到粵語語音，可能會用普通話讀。iPhone 可以喺設定嘅「朗讀內容」下載粵語（Sin-Ji）");
+      if (voices.length > 0 && !findVoice("zh")){
+        showToast("未搵到中文語音。iPhone 可以喺設定嘅「朗讀內容」下載粵語、台灣或普通話語音");
       }
     };
     speechSynthesis.cancel();   // 清走解鎖用嗰句
@@ -1057,28 +1081,34 @@
       els.voiceDetails.style.display = "none";
       return;
     }
-    const voices = cantoneseVoices();
+    const voices = chineseVoices();
     const labels = voices.map(v => {
       const q = voiceQuality(v);
       return (v.name || "語音") + (q ? " · " + q : "") + " · " + v.lang;
     });
     // 萬一標籤仍然重複，加編號分開
     const seen = {};
-    labels.forEach((l, i) => { seen[l] = (seen[l] || 0) + 1; });
+    labels.forEach(l => { seen[l] = (seen[l] || 0) + 1; });
     const counter = {};
     const finalLabels = labels.map(l => {
       if (seen[l] < 2) return l;
       counter[l] = (counter[l] || 0) + 1;
       return l + " (" + counter[l] + ")";
     });
-    els.voiceSelect.innerHTML = '<option value="">自動（揀質素最高嘅粵語語音）</option>' +
-      voices.map((v, i) => '<option value="' + escapeHtml(v.voiceURI) + '">' +
-        escapeHtml(finalLabels[i]) + '</option>').join("");
+    let html = '<option value="">自動（粵語優先，其次台灣國語、普通話）</option>';
+    GROUP_ORDER.forEach(g => {
+      const items = voices.map((v, i) => ({ v, i })).filter(x => voiceGroup(x.v) === g);
+      if (!items.length) return;
+      html += '<optgroup label="' + GROUP_LABEL[g] + '">' +
+        items.map(x => '<option value="' + escapeHtml(x.v.voiceURI) + '">' +
+          escapeHtml(finalLabels[x.i]) + '</option>').join("") + '</optgroup>';
+    });
+    els.voiceSelect.innerHTML = html;
     els.voiceSelect.value = settings.voiceUri || "";
     if (els.voiceSelect.value !== (settings.voiceUri || "")) els.voiceSelect.value = "";
     els.voiceInfo.textContent = voices.length > 0
-      ? "搵到 " + voices.length + " 個粵語（香港）語音。只會列出你部機已經安裝嘅語音。"
-      : "未搵到粵語（香港）語音。iPhone 可以去「設定」→「輔助使用」→「朗讀內容」→「聲音」→「粵語」下載（大致路徑，視乎 iOS 版本）。";
+      ? "搵到 " + voices.length + " 個中文語音（只會列出你部機已安裝嘅）。揀粵語會用廣東話口語讀稿，揀台灣／普通話會用國語讀稿。"
+      : "未搵到中文語音。iPhone 可以去「設定」→「輔助使用」→「朗讀內容」→「聲音」→「中文」下載粵語、台灣或普通話（大致路徑，視乎 iOS 版本）。";
     const rate = effectiveRate();
     els.voiceRate.value = String(rate);
     els.voiceRateLabel.textContent = rate.toFixed(2);
@@ -1131,7 +1161,9 @@
     els.voiceTestBtn.addEventListener("click", () => {
       if (speechActive){ stopSpeech(); return; }
       speechSynthesis.cancel();
-      const u = makeUtterance("你好，呢個係粵語播報測試。一三一 號線，3 分鐘後到站。", "yue");
+      const u = makeUtterance(speechMode() === "cmn"
+        ? "你好，這是語音播報測試。一三一 號線，3 分鐘後到站。"
+        : "你好，呢個係粵語播報測試。一三一 號線，3 分鐘後到站。", "zh");
       speechSynthesis.speak(u);
     });
     if (typeof speechSynthesis.addEventListener === "function"){
