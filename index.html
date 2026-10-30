@@ -371,6 +371,28 @@
     background:transparent;border:none;color:var(--text-dim);font-size:16px;
     font-family:var(--font-body);cursor:pointer;padding:10px;
   }
+  #sayOverlay{
+    position:fixed;inset:0;z-index:50;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:rgba(11,13,15,0.97);padding:24px;text-align:center;
+  }
+  #sayOverlay .so-title{font-size:24px;font-weight:800;}
+  #sayOverlay .so-big{
+    width:100%;max-width:340px;padding:22px 16px;border-radius:20px;border:none;
+    background:var(--amber);color:#0B0D0F;font-size:21px;font-weight:800;
+    font-family:var(--font-body);cursor:pointer;
+  }
+  #sayOverlay .so-big:active{background:#e0a000;}
+  #sayOverlay .btn{max-width:340px;padding:13px;font-size:16px;}
+  #sayOverlay .so-close{
+    background:transparent;border:none;color:var(--text-dim);font-size:16px;
+    font-family:var(--font-body);cursor:pointer;padding:8px;
+  }
+  .say-text{
+    width:100%;max-width:340px;max-height:28vh;overflow:auto;text-align:left;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px;font-size:15px;line-height:1.6;color:var(--text);
+  }
   #toast{
     position:fixed;left:50%;transform:translateX(-50%);
     bottom:calc(24px + env(safe-area-inset-bottom));z-index:60;display:none;
@@ -402,7 +424,8 @@
         <span id="updatedLabel">—</span>
       </div>
       <div class="filter-hint" id="filterHint" style="display:none;"></div>
-      <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">🗣️ 複製「語音捷徑」網址（畀 iPhone 捷徑用）</button>
+      <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">🗣️ 複製「撳一下播報」網址</button>
+      <button class="btn btn-ghost" id="copySayUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">📲 複製「交畀 iPhone 捷徑朗讀」網址</button>
       <div class="group-list" id="groupList"></div>
     </main>
     <footer>資料來源：data.gov.hk（KMB）／ Transport for London（TfL）</footer>
@@ -514,6 +537,17 @@
   <div class="so-title" id="speakOverlayTitle">巴士</div>
   <button class="so-big" id="speakOverlayBtn">🗣️ 撳一下播報</button>
   <button class="so-close" id="speakOverlayClose">唔使播報，直接睇畫面</button>
+</div>
+<!-- 交畀 iPhone 捷徑朗讀（?say=捷徑名）：網頁攞最新到站時間、砌好句子，
+     再用 shortcuts://run-shortcut 將文字交畀指定捷徑，由捷徑嘅「朗讀文字」讀出 -->
+<div id="sayOverlay">
+  <div class="so-title" id="sayTitle">交畀捷徑朗讀</div>
+  <div class="voice-note" id="sayStatus">攞緊最新到站時間…</div>
+  <div class="say-text" id="sayText" style="display:none;"></div>
+  <button class="so-big" id="saySendBtn" style="display:none;">📲 交畀捷徑朗讀</button>
+  <button class="btn btn-ghost" id="sayLocalBtn" style="display:none;">🗣️ 用呢部機直接播報</button>
+  <button class="btn btn-ghost" id="sayCopyBtn" style="display:none;">複製文字</button>
+  <button class="so-close" id="sayCloseBtn">睇畫面</button>
 </div>
 <div id="toast"></div>
 
@@ -632,11 +666,12 @@
           voiceUri: typeof parsed.voiceUri === "string" ? parsed.voiceUri : "",
           speechRate: rate,
           speechPitch: pitch,
+          shortcutName: typeof parsed.shortcutName === "string" ? parsed.shortcutName.slice(0, 40) : "",
           watches: parsed.watches.map(sanitizeWatch).filter(Boolean),
         };
       }
     }catch(e){}
-    return { appId:"", appKey:"", voiceUri:"", speechRate:null, speechPitch:null, watches:[] };
+    return { appId:"", appKey:"", voiceUri:"", speechRate:null, speechPitch:null, shortcutName:"", watches:[] };
   }
   // 私隱模式或者儲存空間滿咗，localStorage.setItem 會 throw。
   // 呢度接住，回傳 true／false，並且每次開頁面最多提示一次。
@@ -924,6 +959,14 @@
     return lastBuses[w.id + ":" + leg] || null;
   }
 
+  // 攞每個追蹤去程／回程嘅最新班次（播報同交畀捷徑都用呢個）
+  async function gatherEntries(list){
+    return Promise.all(list.map(async w => {
+      const [out, inn] = await Promise.all([legForSpeech(w, "outbound"), legForSpeech(w, "inbound")]);
+      return { watch: w, out, inn };
+    }));
+  }
+
   async function announceWatches(list){
     if (!SPEECH_OK){ showToast("呢個瀏覽器唔支援語音播報"); return; }
     if (speechActive){ stopSpeech(); return; }
@@ -941,10 +984,7 @@
     speechActive = true;
     setSpeakingUi(true);
 
-    const entries = await Promise.all(list.map(async w => {
-      const [out, inn] = await Promise.all([legForSpeech(w, "outbound"), legForSpeech(w, "inbound")]);
-      return { watch: w, out, inn };
-    }));
+    const entries = await gatherEntries(list);
     if (session !== speechSession) return;   // 等待期間用戶已經撳咗停止
 
     const segs = buildSegments(entries);
@@ -1087,6 +1127,80 @@
     try{
       await navigator.clipboard.writeText(url);
       showToast("已複製語音捷徑網址");
+    }catch(e){
+      window.prompt("複製呢個網址：", url);
+    }
+  });
+
+  // ----- 交畀 iPhone 捷徑朗讀（?say=捷徑名）-----
+  const sayName = (urlParams.get("say") || "").trim();
+  let sayTextValue = "";
+
+  // 同網頁播報用同一套句子；捷徑嘅「朗讀文字」只有一把聲，所以接成純文字
+  function segmentsToText(segs){
+    return segs.map(sg => sg.t).join(" ");
+  }
+  function shortcutRunUrl(name, text){
+    return "shortcuts://run-shortcut?name=" + encodeURIComponent(name) +
+           "&input=text&text=" + encodeURIComponent(text);
+  }
+  function sendToShortcut(){
+    if (!sayTextValue) return;
+    location.href = shortcutRunUrl(sayName, sayTextValue);
+  }
+  async function runSayMode(){
+    els.sayOverlay.style.display = "flex";
+    const list = shownWatches;
+    if (list.length === 0){
+      els.sayStatus.textContent = "搵唔到可以播報嘅路線，請返去全部路線睇睇。";
+      return;
+    }
+    els.sayTitle.textContent = list.map(w => w.routes.join("、")).join(" / ") + " 號線";
+    const entries = await gatherEntries(list);
+    sayTextValue = segmentsToText(buildSegments(entries));
+    els.sayText.textContent = sayTextValue;
+    els.sayText.style.display = "block";
+    els.saySendBtn.style.display = "block";
+    els.sayCopyBtn.style.display = "block";
+    if (SPEECH_OK) els.sayLocalBtn.style.display = "block";
+    els.sayStatus.textContent = "已準備好，正交畀捷徑「" + sayName + "」朗讀…（如果冇反應，請撳下面個掣）";
+    sendToShortcut();   // 自動交畀捷徑；被攔住嘅話，用戶撳掣再試
+  }
+  els.saySendBtn.addEventListener("click", sendToShortcut);
+  els.sayCopyBtn.addEventListener("click", async () => {
+    try{
+      await navigator.clipboard.writeText(sayTextValue);
+      showToast("已複製文字");
+    }catch(e){
+      window.prompt("複製呢段文字：", sayTextValue);
+    }
+  });
+  els.sayLocalBtn.addEventListener("click", () => {
+    els.sayOverlay.style.display = "none";
+    announceWatches(shownWatches);
+  });
+  els.sayCloseBtn.addEventListener("click", () => {
+    els.sayOverlay.style.display = "none";
+  });
+
+  function sayUrl(name){
+    const u = new URL(location.href);
+    u.searchParams.delete("speak");
+    u.searchParams.set("say", name);
+    u.hash = "";
+    return u.toString();
+  }
+  els.copySayUrlBtn.addEventListener("click", async () => {
+    const def = settings.shortcutName ||
+      ("播報" + shownWatches.map(w => w.routes.join("")).join(""));
+    const name = window.prompt("你喺「捷徑」app 入面嗰個捷徑叫咩名？（要完全一樣，包括大細楷）", def);
+    if (!name || !name.trim()) return;
+    settings.shortcutName = name.trim().slice(0, 40);
+    saveSettings();
+    const url = sayUrl(settings.shortcutName);
+    try{
+      await navigator.clipboard.writeText(url);
+      showToast("已複製，貼入捷徑嘅「打開 URL」");
     }catch(e){
       window.prompt("複製呢個網址：", url);
     }
@@ -1352,6 +1466,7 @@
     let watchesToShow = settings.watches;
     let isFiltered = false;
     els.copySpeakUrlBtn.style.display = "none";
+    els.copySayUrlBtn.style.display = "none";
 
     if (focusWatches && focusWatches.length > 0){
       // 呢個捷徑嘅路線資料已經直接編碼喺網址度，唔使查 localStorage，
@@ -1365,6 +1480,7 @@
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
       els.copySpeakUrlBtn.style.display = "block";
+      els.copySayUrlBtn.style.display = "block";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = focusWatches.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
@@ -1394,6 +1510,7 @@
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
       els.copySpeakUrlBtn.style.display = "block";
+      els.copySayUrlBtn.style.display = "block";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = found.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
@@ -1520,7 +1637,8 @@
   function startApp(){
     showMain();
     refreshData();
-    if (speakParam) showSpeakOverlay();
+    if (sayName) runSayMode();
+    else if (speakParam) showSpeakOverlay();
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(refreshData, REFRESH_MS);
     document.addEventListener("visibilitychange", () => {
