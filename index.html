@@ -67,8 +67,9 @@
     justify-content:space-between;
     padding:calc(env(safe-area-inset-top) + 18px) 18px 14px 18px;
   }
-  .brand{display:flex;align-items:center;gap:10px;}
-  .brand h1{font-size:24px;margin:0;font-weight:700;letter-spacing:0.2px;}
+  .brand{display:flex;align-items:center;gap:10px;min-width:0;}
+  .brand h1{font-size:24px;margin:0;font-weight:700;letter-spacing:0.2px;
+    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .pulse{
     width:8px;height:8px;border-radius:50%;background:var(--amber);
     box-shadow:0 0 0 0 rgba(255,179,0,0.6);
@@ -330,6 +331,38 @@
   .select-bar .sb-cancel{background:transparent;color:var(--text-dim);border:1px solid var(--line);}
   .select-bar .sb-link{background:var(--amber);color:#0B0D0F;}
   .select-bar .sb-link:disabled{opacity:0.4;}
+
+  /* ===== 廣東話播報 ===== */
+  .icon-btn.speaking{color:var(--amber);border-color:var(--amber);}
+  .speak-btn{
+    flex-shrink:0;width:32px;height:26px;border-radius:8px;
+    border:1px solid var(--line);background:var(--panel-2);color:var(--amber);
+    font-size:14px;line-height:1;cursor:pointer;padding:0;
+  }
+  .speak-btn:active{background:var(--line);}
+  .speak-btn.speaking{border-color:var(--amber);}
+  #speakOverlay{
+    position:fixed;inset:0;z-index:50;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    background:rgba(11,13,15,0.97);padding:24px;text-align:center;
+  }
+  #speakOverlay .so-title{font-size:26px;font-weight:800;}
+  #speakOverlay .so-big{
+    width:100%;max-width:340px;padding:28px 16px;border-radius:20px;border:none;
+    background:var(--amber);color:#0B0D0F;font-size:24px;font-weight:800;
+    font-family:var(--font-body);cursor:pointer;
+  }
+  #speakOverlay .so-big:active{background:#e0a000;}
+  #speakOverlay .so-close{
+    background:transparent;border:none;color:var(--text-dim);font-size:16px;
+    font-family:var(--font-body);cursor:pointer;padding:10px;
+  }
+  #toast{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:calc(24px + env(safe-area-inset-bottom));z-index:60;display:none;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:11px 16px;border-radius:12px;font-size:14.5px;max-width:90%;text-align:center;
+  }
 </style>
 </head>
 <body>
@@ -343,6 +376,7 @@
         <h1 id="mainTitle">巴士</h1>
       </div>
       <div class="header-actions">
+        <button class="icon-btn" id="speakAllBtn" title="廣東話播報到站時間" aria-label="播報">🔊</button>
         <button class="icon-btn" id="backToAllBtn" title="返回全部路線" style="display:none;">☰</button>
         <button class="icon-btn" id="refreshBtn" title="立即刷新">⟳</button>
         <button class="icon-btn" id="manageBtn" title="管理追蹤">⚙</button>
@@ -354,6 +388,7 @@
         <span id="updatedLabel">—</span>
       </div>
       <div class="filter-hint" id="filterHint" style="display:none;"></div>
+      <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">🔊 複製「語音捷徑」網址（畀 iPhone 捷徑用）</button>
       <div class="group-list" id="groupList"></div>
     </main>
     <footer>資料來源：data.gov.hk（KMB）／ Transport for London（TfL）</footer>
@@ -441,6 +476,15 @@
   </div>
 
 </div>
+
+<!-- 播報用嘅全螢幕確認層：iPhone 要求語音一定要由用戶撳一下先可以出聲，
+     所以由捷徑開 ?speak=1 嘅時候，會先顯示呢個大掣，撳一下就開始播報 -->
+<div id="speakOverlay">
+  <div class="so-title" id="speakOverlayTitle">巴士</div>
+  <button class="so-big" id="speakOverlayBtn">🔊 撳一下播報</button>
+  <button class="so-close" id="speakOverlayClose">唔使播報，直接睇畫面</button>
+</div>
+<div id="toast"></div>
 
 <script>
 (function(){
@@ -692,6 +736,193 @@
         .slice(0, MAX_PER_WATCH);
     }catch(e){ return null; }   // null = 讀取失敗
   }
+
+  // ===================== 廣東話播報 =====================
+  const SPEECH_OK = ("speechSynthesis" in window) && (typeof SpeechSynthesisUtterance !== "undefined");
+  let shownWatches = [];        // 目前畫面顯示緊嘅追蹤（refreshData 更新）
+  const lastBuses = {};         // watchId:leg -> 最近一次成功攞到嘅班次，攞唔到最新時備用
+  let speechActive = false;
+  let speechSession = 0;        // 每次播報加 1，避免舊播報嘅 onend 影響新播報
+  let toastTimer = null;
+
+  function showToast(msg){
+    els.toast.textContent = msg;
+    els.toast.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { els.toast.style.display = "none"; }, 3500);
+  }
+
+  function normLang(v){ return (v.lang || "").replace("_", "-").toLowerCase(); }
+  function findVoice(kind){
+    if (!SPEECH_OK) return null;
+    const voices = speechSynthesis.getVoices() || [];
+    if (kind === "yue"){
+      // iOS 用 zh-HK；Android／Chrome 有時用 yue-HK
+      return voices.find(v => normLang(v) === "zh-hk")
+          || voices.find(v => normLang(v).startsWith("yue"))
+          || null;
+    }
+    return voices.find(v => normLang(v) === "en-gb")
+        || voices.find(v => normLang(v).startsWith("en"))
+        || null;
+  }
+  function makeUtterance(text, kind){
+    const u = new SpeechSynthesisUtterance(text);
+    const v = findVoice(kind);
+    if (v){ u.voice = v; u.lang = v.lang; }
+    else { u.lang = kind === "yue" ? "zh-HK" : "en-GB"; }
+    return u;
+  }
+
+  // 路線號逐個數字讀，例如 131 讀成「一三一」，唔係「一百三十一」
+  function spokenRoute(r){
+    const d = { "0":"零","1":"一","2":"二","3":"三","4":"四","5":"五","6":"六","7":"七","8":"八","9":"九" };
+    return String(r).replace(/[0-9]/g, c => d[c]);
+  }
+  function isLatinName(name){
+    return /[A-Za-z]/.test(name) && !/[\u3400-\u9fff]/.test(name);
+  }
+  function etaPhrase(buses, multiRoute){
+    if (buses === null || buses === undefined) return "讀取失敗";
+    if (buses.length === 0) return "暫時冇班次";
+    const b = buses[0];
+    const t = b.mins <= 0 ? "即將到站" : (b.mins + " 分鐘後到站");
+    return (multiRoute ? spokenRoute(b.route) + " 號線，" : "") + t;
+  }
+
+  // 組合成一串 {t: 文字, k: "yue"|"en"}；英文站名用英文語音讀，其餘用粵語
+  function buildSegments(entries){
+    const segs = [];
+    entries.forEach(e => {
+      const multi = e.watch.routes.length > 1;
+      segs.push({ t: e.watch.routes.map(spokenRoute).join("、") + " 號線。", k: "yue" });
+      [["outbound", "去程", e.out], ["inbound", "回程", e.inn]].forEach(([leg, label, buses]) => {
+        const name = (e.watch[leg] && e.watch[leg].stopName) || "";
+        segs.push({ t: label + "，", k: "yue" });
+        if (name){
+          if (isLatinName(name)) segs.push({ t: name + ",", k: "en" });
+          else segs.push({ t: name + "，", k: "yue" });
+        }
+        segs.push({ t: etaPhrase(buses, multi) + "。", k: "yue" });
+      });
+    });
+    return segs;
+  }
+
+  function setSpeakingUi(on){
+    els.speakAllBtn.classList.toggle("speaking", on);
+    els.speakAllBtn.textContent = on ? "⏹" : "🔊";
+    document.querySelectorAll(".speak-btn").forEach(b => {
+      b.classList.toggle("speaking", on);
+      b.textContent = on ? "⏹" : "🔊";
+    });
+  }
+  function stopSpeech(){
+    speechSession++;
+    if (SPEECH_OK) speechSynthesis.cancel();
+    speechActive = false;
+    setSpeakingUi(false);
+  }
+
+  function withTimeout(promise, ms){
+    return new Promise(resolve => {
+      const timer = setTimeout(() => resolve(undefined), ms);
+      promise.then(v => { clearTimeout(timer); resolve(v); })
+             .catch(() => { clearTimeout(timer); resolve(null); });
+    });
+  }
+  async function legForSpeech(w, leg){
+    const fresh = await withTimeout(fetchLegArrivals(w, leg, 0), 4000);
+    if (fresh !== undefined && fresh !== null){ lastBuses[w.id + ":" + leg] = fresh; return fresh; }
+    // 超時或者失敗：用最近一次成功嘅資料頂住（冇就當讀取失敗）
+    return lastBuses[w.id + ":" + leg] || null;
+  }
+
+  async function announceWatches(list){
+    if (!SPEECH_OK){ showToast("呢個瀏覽器唔支援語音播報"); return; }
+    if (speechActive){ stopSpeech(); return; }
+    if (!list || list.length === 0) return;
+
+    // iPhone：語音一定要喺用戶撳掣嗰一刻開始。呢度未有任何 await，
+    // 先同步講一句靜音嘅字「解鎖」，之後攞完最新資料先真正播報。
+    try{
+      const unlock = new SpeechSynthesisUtterance(" ");
+      unlock.volume = 0;
+      speechSynthesis.speak(unlock);
+    }catch(e){}
+
+    const session = ++speechSession;
+    speechActive = true;
+    setSpeakingUi(true);
+
+    const entries = await Promise.all(list.map(async w => {
+      const [out, inn] = await Promise.all([legForSpeech(w, "outbound"), legForSpeech(w, "inbound")]);
+      return { watch: w, out, inn };
+    }));
+    if (session !== speechSession) return;   // 等待期間用戶已經撳咗停止
+
+    const segs = buildSegments(entries);
+    const finish = () => {
+      if (session !== speechSession) return;
+      speechActive = false;
+      setSpeakingUi(false);
+      const voices = speechSynthesis.getVoices() || [];
+      if (voices.length > 0 && !findVoice("yue")){
+        showToast("未搵到粵語語音，可能會用普通話讀。iPhone 可以喺設定嘅「朗讀內容」下載粵語（Sin-Ji）");
+      }
+    };
+    speechSynthesis.cancel();   // 清走解鎖用嗰句
+    segs.forEach((sg, i) => {
+      const u = makeUtterance(sg.t, sg.k);
+      if (i === segs.length - 1){ u.onend = finish; u.onerror = finish; }
+      speechSynthesis.speak(u);
+    });
+  }
+
+  if (SPEECH_OK){
+    // 部分瀏覽器要先叫一次先會載入語音清單
+    speechSynthesis.getVoices();
+    if (typeof speechSynthesis.addEventListener === "function"){
+      speechSynthesis.addEventListener("voiceschanged", () => { speechSynthesis.getVoices(); });
+    }
+  } else {
+    els.speakAllBtn.style.display = "none";
+  }
+  els.speakAllBtn.addEventListener("click", () => announceWatches(shownWatches));
+
+  // 由 iPhone 捷徑開 ?speak=1：顯示大掣，撳一下就播報
+  const speakParam = urlParams.get("speak") === "1";
+  function showSpeakOverlay(){
+    if (!SPEECH_OK) return;
+    els.speakOverlayTitle.textContent = shownWatches.length > 0
+      ? shownWatches.map(w => w.routes.join("、")).join(" / ") + " 號線"
+      : "巴士";
+    els.speakOverlay.style.display = "flex";
+  }
+  els.speakOverlayBtn.addEventListener("click", () => {
+    els.speakOverlay.style.display = "none";
+    announceWatches(shownWatches);
+  });
+  els.speakOverlayClose.addEventListener("click", () => {
+    els.speakOverlay.style.display = "none";
+  });
+
+  // 語音捷徑網址 = 目前獨立捷徑網址加 speak=1
+  function speakUrl(){
+    const u = new URL(location.href);
+    u.searchParams.set("speak", "1");
+    u.hash = "";
+    return u.toString();
+  }
+  els.copySpeakUrlBtn.addEventListener("click", async () => {
+    const url = speakUrl();
+    try{
+      await navigator.clipboard.writeText(url);
+      showToast("已複製語音捷徑網址");
+    }catch(e){
+      window.prompt("複製呢個網址：", url);
+    }
+  });
 
   // ===================== 畫面切換 =====================
   function showMain(){
@@ -951,6 +1182,7 @@
   async function refreshData(){
     let watchesToShow = settings.watches;
     let isFiltered = false;
+    els.copySpeakUrlBtn.style.display = "none";
 
     if (focusWatches && focusWatches.length > 0){
       // 呢個捷徑嘅路線資料已經直接編碼喺網址度，唔使查 localStorage，
@@ -963,6 +1195,7 @@
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
+      els.copySpeakUrlBtn.style.display = "block";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = focusWatches.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
@@ -991,6 +1224,7 @@
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
+      els.copySpeakUrlBtn.style.display = "block";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = found.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
@@ -1005,6 +1239,8 @@
         els.filterHint.style.display = "none";
       }
     }
+
+    shownWatches = watchesToShow;
 
     if (watchesToShow.length === 0){
       els.groupList.innerHTML =
@@ -1034,9 +1270,11 @@
       try{
         buses = await fetchLegArrivals(c.watch, c.leg, c.idx);
       }catch(e){ buses = null; }
+      if (buses !== null) lastBuses[c.watch.id + ":" + c.leg] = buses;
       return {
         city: c.watch.city,
         leg: c.leg,
+        watchId: c.watch.id,
         stopName: (c.watch[c.leg] && c.watch[c.leg].stopName) || "",
         buses,
       };
@@ -1053,6 +1291,10 @@
 
       const cardEl = document.createElement("div");
       cardEl.className = "group-card";
+      // 每個追蹤只喺「去程」卡放一個播報掣，播報時會同時讀去程同回程
+      const speakBtnHtml = (SPEECH_OK && card.leg === "outbound")
+        ? '<button class="speak-btn' + (speechActive ? " speaking" : "") + '" title="播報呢條路線" aria-label="播報">' + (speechActive ? "⏹" : "🔊") + '</button>'
+        : "";
 
       let rowsHtml = "";
       if (card.buses === null){
@@ -1081,8 +1323,17 @@
           '<div class="arrow" style="background:' + cityTint + '">' + dirIcon + '</div>' +
           '<span class="stop-name">' + escapeHtml(card.stopName) + '</span>' +
           '<span class="city-tag">' + cityLabel + '</span>' +
+          speakBtnHtml +
         '</div>' +
         rowsHtml;
+
+      const speakBtn = cardEl.querySelector(".speak-btn");
+      if (speakBtn){
+        speakBtn.addEventListener("click", () => {
+          const w = shownWatches.find(x => x.id === card.watchId);
+          if (w) announceWatches([w]);
+        });
+      }
 
       els.groupList.appendChild(cardEl);
     });
@@ -1100,6 +1351,7 @@
   function startApp(){
     showMain();
     refreshData();
+    if (speakParam) showSpeakOverlay();
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(refreshData, REFRESH_MS);
     document.addEventListener("visibilitychange", () => {
