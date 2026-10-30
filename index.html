@@ -259,6 +259,8 @@
   }
   input[type="range"]{width:100%;accent-color:var(--amber);}
   .voice-note{color:var(--text-dim);font-size:13.5px;line-height:1.5;}
+  .preset-row{display:flex;gap:8px;}
+  .preset-row .btn{padding:11px 6px;font-size:15px;}
   details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
   details summary{color:var(--text-dim);font-size:16.5px;cursor:pointer;}
   details .adv-fields{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
@@ -436,6 +438,13 @@
           <div class="voice-note" id="voiceInfo"></div>
           <div class="voice-note">語速：<span id="voiceRateLabel">1.00</span></div>
           <input type="range" id="voiceRate" min="0.6" max="1.4" step="0.05" value="1">
+          <div class="voice-note">音調（愈高愈似年輕）：<span id="voicePitchLabel">1.00</span></div>
+          <input type="range" id="voicePitch" min="0.8" max="1.6" step="0.05" value="1">
+          <div class="preset-row">
+            <button class="btn btn-ghost" id="presetNatural">自然</button>
+            <button class="btn btn-ghost" id="presetYoung">年輕</button>
+            <button class="btn btn-ghost" id="presetYounger">更年輕</button>
+          </div>
           <button class="btn btn-ghost" id="voiceTestBtn">▶ 試聽</button>
         </div>
       </details>
@@ -615,16 +624,19 @@
       if (parsed && Array.isArray(parsed.watches)){
         const rate = (typeof parsed.speechRate === "number" && isFinite(parsed.speechRate))
           ? Math.min(1.5, Math.max(0.5, parsed.speechRate)) : null;
+        const pitch = (typeof parsed.speechPitch === "number" && isFinite(parsed.speechPitch))
+          ? Math.min(2, Math.max(0.5, parsed.speechPitch)) : null;
         return {
           appId: typeof parsed.appId === "string" ? parsed.appId : "",
           appKey: typeof parsed.appKey === "string" ? parsed.appKey : "",
           voiceUri: typeof parsed.voiceUri === "string" ? parsed.voiceUri : "",
           speechRate: rate,
+          speechPitch: pitch,
           watches: parsed.watches.map(sanitizeWatch).filter(Boolean),
         };
       }
     }catch(e){}
-    return { appId:"", appKey:"", voiceUri:"", speechRate:null, watches:[] };
+    return { appId:"", appKey:"", voiceUri:"", speechRate:null, speechPitch:null, watches:[] };
   }
   // 私隱模式或者儲存空間滿咗，localStorage.setItem 會 throw。
   // 呢度接住，回傳 true／false，並且每次開頁面最多提示一次。
@@ -787,10 +799,18 @@
   }
   // 名稱有 Premium／Enhanced（優質／增強）嘅排前面
   function voiceScore(v){
-    const n = v.name || "";
+    const n = (v.name || "") + " " + (v.voiceURI || "");
     if (/premium|優質|高品質/i.test(n)) return 3;
     if (/enhanced|增強|加強/i.test(n)) return 2;
     return 0;
+  }
+  // 同名語音（例如兩個都叫「善怡」）靠 voiceURI／名稱分辨質素
+  function voiceQuality(v){
+    const n = ((v.name || "") + " " + (v.voiceURI || "")).toLowerCase();
+    if (/premium|優質|高品質/.test(n)) return "優質";
+    if (/enhanced|增強|加強/.test(n)) return "增強";
+    if (/compact|標準/.test(n)) return "標準";
+    return "";
   }
   function cantoneseVoices(){
     if (!SPEECH_OK) return [];
@@ -800,6 +820,12 @@
   // 設定優先；獨立捷徑可能攞唔到 localStorage，所以網址嘅 vn／vr 做後備
   const urlVoiceUri = urlParams.get("vn") || "";
   const urlRateNum = parseFloat(urlParams.get("vr"));
+  const urlPitchNum = parseFloat(urlParams.get("vp"));
+  function effectivePitch(){
+    if (typeof settings.speechPitch === "number") return settings.speechPitch;
+    if (isFinite(urlPitchNum)) return Math.min(2, Math.max(0.5, urlPitchNum));
+    return 1;
+  }
   function effectiveVoiceUri(){ return settings.voiceUri || urlVoiceUri; }
   function effectiveRate(){
     if (typeof settings.speechRate === "number") return settings.speechRate;
@@ -830,6 +856,7 @@
     if (v){ u.voice = v; u.lang = v.lang; }
     else { u.lang = kind === "yue" ? "zh-HK" : "en-GB"; }
     u.rate = effectiveRate();
+    if (kind === "yue") u.pitch = effectivePitch();   // 音調淨係調粵語；英文站名語音保持原狀
     return u;
   }
 
@@ -973,6 +1000,7 @@
     // 將你揀嘅語音同語速一齊帶入網址，獨立捷徑攞唔到 localStorage 都讀得啱
     if (settings.voiceUri) u.searchParams.set("vn", settings.voiceUri);
     if (typeof settings.speechRate === "number") u.searchParams.set("vr", String(settings.speechRate));
+    if (typeof settings.speechPitch === "number") u.searchParams.set("vp", String(settings.speechPitch));
     u.hash = "";
     return u.toString();
   }
@@ -983,9 +1011,22 @@
       return;
     }
     const voices = cantoneseVoices();
+    const labels = voices.map(v => {
+      const q = voiceQuality(v);
+      return (v.name || "語音") + (q ? " · " + q : "") + " · " + v.lang;
+    });
+    // 萬一標籤仍然重複，加編號分開
+    const seen = {};
+    labels.forEach((l, i) => { seen[l] = (seen[l] || 0) + 1; });
+    const counter = {};
+    const finalLabels = labels.map(l => {
+      if (seen[l] < 2) return l;
+      counter[l] = (counter[l] || 0) + 1;
+      return l + " (" + counter[l] + ")";
+    });
     els.voiceSelect.innerHTML = '<option value="">自動（揀質素最高嘅粵語語音）</option>' +
-      voices.map(v => '<option value="' + escapeHtml(v.voiceURI) + '">' +
-        escapeHtml((v.name || "語音") + " · " + v.lang) + '</option>').join("");
+      voices.map((v, i) => '<option value="' + escapeHtml(v.voiceURI) + '">' +
+        escapeHtml(finalLabels[i]) + '</option>').join("");
     els.voiceSelect.value = settings.voiceUri || "";
     if (els.voiceSelect.value !== (settings.voiceUri || "")) els.voiceSelect.value = "";
     els.voiceInfo.textContent = voices.length > 0
@@ -994,6 +1035,19 @@
     const rate = effectiveRate();
     els.voiceRate.value = String(rate);
     els.voiceRateLabel.textContent = rate.toFixed(2);
+    const pitch = effectivePitch();
+    els.voicePitch.value = String(pitch);
+    els.voicePitchLabel.textContent = pitch.toFixed(2);
+  }
+  function applyPreset(pitch, rate){
+    settings.speechPitch = pitch;
+    settings.speechRate = rate;
+    saveSettings();
+    els.voicePitch.value = String(pitch);
+    els.voicePitchLabel.textContent = pitch.toFixed(2);
+    els.voiceRate.value = String(rate);
+    els.voiceRateLabel.textContent = rate.toFixed(2);
+    showToast("已套用，撳「試聽」聽聽效果");
   }
   if (SPEECH_OK){
     els.voiceSelect.addEventListener("change", () => {
@@ -1007,6 +1061,16 @@
       settings.speechRate = parseFloat(els.voiceRate.value);
       saveSettings();
     });
+    els.voicePitch.addEventListener("input", () => {
+      els.voicePitchLabel.textContent = parseFloat(els.voicePitch.value).toFixed(2);
+    });
+    els.voicePitch.addEventListener("change", () => {
+      settings.speechPitch = parseFloat(els.voicePitch.value);
+      saveSettings();
+    });
+    els.presetNatural.addEventListener("click", () => applyPreset(1.0, 1.0));
+    els.presetYoung.addEventListener("click", () => applyPreset(1.2, 1.1));
+    els.presetYounger.addEventListener("click", () => applyPreset(1.4, 1.15));
     els.voiceTestBtn.addEventListener("click", () => {
       if (speechActive){ stopSpeech(); return; }
       speechSynthesis.cancel();
