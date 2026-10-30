@@ -185,6 +185,7 @@
   .g-empty{
     padding:14px 0;color:var(--text-faint);font-size:14.5px;text-align:center;
   }
+  .g-empty.err{color:#ff8f8a;}
 
   .empty-state{
     flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -475,18 +476,52 @@
     return watchList.map(w => ({ i: w.id, c: w.city, r: w.routes, o: w.outbound, ib: w.inbound }));
   }
   function unpackWatchesFromUrl(packed){
-    return packed.map(x => ({ id: x.i, city: x.c, routes: x.r, outbound: x.o, inbound: x.ib }));
+    return packed.map(x => (x && typeof x === "object")
+      ? { id: x.i, city: x.c, routes: x.r, outbound: x.o, inbound: x.ib }
+      : null);
+  }
+
+  // 驗證一個追蹤項目嘅結構同內容。網址 ?d=... 嘅資料可以由第三者控制，
+  // localStorage 亦有可能損毀，所以凡係讀入嚟嘅資料都要過呢關，
+  // 唔合格就丟棄（回傳 null），避免之後 throw 或者組出奇怪嘅 API 網址。
+  function sanitizeLeg(leg, city){
+    if (!leg || typeof leg !== "object") return null;
+    const idOk = city === "hk" ? /^[0-9A-Fa-f]{16}$/ : /^[A-Za-z0-9]{3,24}$/;
+    if (typeof leg.stopId !== "string" || !idOk.test(leg.stopId)) return null;
+    const name = typeof leg.stopName === "string" ? leg.stopName.slice(0, 80) : "";
+    return { stopId: leg.stopId, stopName: name };
+  }
+  function sanitizeWatch(w){
+    if (!w || typeof w !== "object") return null;
+    if (w.city !== "hk" && w.city !== "london") return null;
+    if (!Array.isArray(w.routes) || w.routes.length === 0 || w.routes.length > 10) return null;
+    const routeOk = /^[A-Za-z0-9]{1,10}$/;
+    if (!w.routes.every(r => typeof r === "string" && routeOk.test(r))) return null;
+    const outbound = sanitizeLeg(w.outbound, w.city);
+    const inbound = sanitizeLeg(w.inbound, w.city);
+    if (!outbound || !inbound) return null;
+    const id = (typeof w.id === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(w.id))
+      ? w.id
+      : "w" + Date.now() + Math.floor(Math.random() * 1000);
+    return { id, city: w.city, routes: w.routes.slice(), outbound, inbound };
   }
 
   const urlParams = new URLSearchParams(location.search);
 
   let focusWatches = null;
+  let dataParamInvalid = false;   // 有 ?d= 但完全冇可用資料
+  let dataParamDropped = 0;       // 有幾多條因為資料唔合格被略過
   const dataParam = urlParams.get("d");
   if (dataParam){
     try{
       const packed = JSON.parse(fromBase64Unicode(dataParam));
-      if (Array.isArray(packed) && packed.length > 0) focusWatches = unpackWatchesFromUrl(packed);
+      if (Array.isArray(packed) && packed.length > 0 && packed.length <= 12){
+        const valid = unpackWatchesFromUrl(packed).map(sanitizeWatch).filter(Boolean);
+        dataParamDropped = packed.length - valid.length;
+        if (valid.length > 0) focusWatches = valid;
+      }
     }catch(e){ focusWatches = null; }
+    if (!focusWatches) dataParamInvalid = true;
   }
 
   // 網址帶住 ?watch=<id> 或 ?watch=<id1>,<id2>,... 就代表呢個係
@@ -511,12 +546,30 @@
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
-      if (parsed && Array.isArray(parsed.watches)) return parsed;
+      if (parsed && Array.isArray(parsed.watches)){
+        return {
+          appId: typeof parsed.appId === "string" ? parsed.appId : "",
+          appKey: typeof parsed.appKey === "string" ? parsed.appKey : "",
+          watches: parsed.watches.map(sanitizeWatch).filter(Boolean),
+        };
+      }
     }catch(e){}
     return { appId:"", appKey:"", watches:[] };
   }
+  // 私隱模式或者儲存空間滿咗，localStorage.setItem 會 throw。
+  // 呢度接住，回傳 true／false，並且每次開頁面最多提示一次。
+  let storageWarned = false;
   function saveSettings(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      return true;
+    }catch(e){
+      if (!storageWarned){
+        storageWarned = true;
+        alert("儲存唔到設定到瀏覽器（可能係私隱瀏覽模式或者儲存空間已滿）。\n你嘅改動只喺目前呢個頁面有效，關閉或者重新載入後會消失。");
+      }
+      return false;
+    }
   }
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, c => ({
@@ -563,21 +616,21 @@
         }))
         .sort((a,b) => a.mins - b.mins)
         .slice(0, MAX_PER_WATCH);
-    }catch(e){ return []; }
+    }catch(e){ return null; }   // null = 讀取失敗（同「冇班次」嘅 [] 分開）
   }
 
   // ===================== KMB（香港）=====================
   async function kmbFetchStopName(stopId){
     try{
-      const res = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/stop/" + stopId);
+      const res = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/stop/" + encodeURIComponent(stopId));
       return (res && res.data && res.data.name_tc) ? res.data.name_tc : ("車站 " + stopId.slice(-4));
     }catch(e){ return "車站 " + stopId.slice(-4); }
   }
   async function kmbResolveDirectionData(route, dir){
     for (const st of [1,2,3]){
       try{
-        const routeInfoRes = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/route/" + route + "/" + dir + "/" + st);
-        const stopsRes = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/route-stop/" + route + "/" + dir + "/" + st);
+        const routeInfoRes = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/route/" + encodeURIComponent(route) + "/" + dir + "/" + st);
+        const stopsRes = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/route-stop/" + encodeURIComponent(route) + "/" + dir + "/" + st);
         const stopsRaw = (stopsRes && stopsRes.data) ? stopsRes.data : [];
         if (stopsRaw.length > 0){
           return { routeInfo: (routeInfoRes && routeInfoRes.data) ? routeInfoRes.data : null, stopsRaw };
@@ -598,20 +651,20 @@
   }
   async function kmbFetchArrivalsForStop(routes, stopId, expectedDir){
     try{
-      const res = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/" + stopId);
+      const res = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/" + encodeURIComponent(stopId));
       const data = (res && res.data) ? res.data : [];
       const now = new Date();
       return data
         .filter(item => routes.includes(item.route) && item.eta && item.dir === expectedDir)
         .map(item => ({
           route: item.route,
-          dest: item.dest_tc,
+          dest: item.dest_tc || "",
           mins: Math.round((new Date(item.eta) - now) / 60000),
         }))
-        .filter(item => item.mins >= -1)
+        .filter(item => Number.isFinite(item.mins) && item.mins >= -1)
         .sort((a,b) => a.mins - b.mins)
         .slice(0, MAX_PER_WATCH);
-    }catch(e){ return []; }
+    }catch(e){ return null; }   // null = 讀取失敗
   }
 
   // ===================== 畫面切換 =====================
@@ -816,7 +869,7 @@
       inbound: draft.inbound,
     };
     settings.watches.push(watch);
-    saveSettings();
+    saveSettings();   // 儲存失敗會自動提示，但今次仍然顯示喺目前頁面
     openManage();
     refreshData();
   }
@@ -834,10 +887,13 @@
     } else {
       buses = await tflFetchArrivalsForStop(watch.routes, legInfo.stopId);
     }
+    if (buses === null) return null;   // 讀取失敗，交畀 refreshData 顯示
     return buses.map(b => Object.assign({}, b, { color: colorForWatchIndex(idx) }));
     // 注意：buses 入面已經由 kmbFetchArrivalsForStop / tflFetchArrivalsForStop
     // 按 mins 由細到大排好，即係「先到先排」，呢個排序喺呢一層已經做妥
   }
+
+  let lastUpdatedText = "";   // 最近一次成功更新嘅時間
 
   async function refreshData(){
     let watchesToShow = settings.watches;
@@ -858,6 +914,9 @@
       els.filterHint.textContent = focusWatches.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
         : "🔗 呢個係自訂捷徑，淨係顯示呢 " + focusWatches.length + " 條路線：" + routeLabel;
+      if (dataParamDropped > 0){
+        els.filterHint.textContent += "（另有 " + dataParamDropped + " 條資料唔完整，已略過）";
+      }
     } else if (focusWatchIds.length > 0){
       isFiltered = true;
       const found = settings.watches.filter(w => focusWatchIds.includes(w.id));
@@ -886,7 +945,12 @@
     } else {
       els.mainTitle.textContent = "巴士";
       els.backToAllBtn.style.display = "none";
-      els.filterHint.style.display = "none";
+      if (dataParamInvalid){
+        els.filterHint.style.display = "block";
+        els.filterHint.textContent = "⚠️ 呢個捷徑連結嘅資料有問題或者已損毀，所以顯示返全部追蹤嘅路線。";
+      } else {
+        els.filterHint.style.display = "none";
+      }
     }
 
     if (watchesToShow.length === 0){
@@ -913,11 +977,14 @@
     }
 
     const cards = await Promise.all(cardsData.map(async (c) => {
-      const buses = await fetchLegArrivals(c.watch, c.leg, c.idx);
+      let buses;
+      try{
+        buses = await fetchLegArrivals(c.watch, c.leg, c.idx);
+      }catch(e){ buses = null; }
       return {
         city: c.watch.city,
         leg: c.leg,
-        stopName: c.watch[c.leg].stopName,
+        stopName: (c.watch[c.leg] && c.watch[c.leg].stopName) || "",
         buses,
       };
     }));
@@ -925,6 +992,7 @@
     els.refreshBtn.style.opacity = "1";
     els.groupList.innerHTML = "";
 
+    let okCount = 0, failCount = 0;
     cards.forEach(card => {
       const dirIcon = card.leg === "outbound" ? "➡️" : "⬅️";
       const cityTint = card.city === "hk" ? "rgba(255,107,74,0.16)" : "rgba(79,166,255,0.16)";
@@ -934,9 +1002,14 @@
       cardEl.className = "group-card";
 
       let rowsHtml = "";
-      if (card.buses.length === 0){
+      if (card.buses === null){
+        failCount++;
+        rowsHtml = '<div class="g-empty err">⚠️ 讀取失敗，請檢查網絡後再刷新</div>';
+      } else if (card.buses.length === 0){
+        okCount++;
         rowsHtml = '<div class="g-empty">暫無班次</div>';
       } else {
+        okCount++;
         card.buses.forEach((b, i) => {
           const isTop = i === 0;
           const timeLabel = b.mins <= 0 ? "到站" : b.mins;
@@ -961,9 +1034,14 @@
       els.groupList.appendChild(cardEl);
     });
 
-    const now = new Date();
-    els.updatedLabel.textContent = "更新於 " +
-      String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+    // 全部讀取失敗就唔好更新時間，免得誤以為見到嘅係最新資料
+    if (okCount === 0){
+      els.updatedLabel.textContent = "讀取失敗" + (lastUpdatedText ? "・上次 " + lastUpdatedText : "");
+    } else {
+      const now = new Date();
+      lastUpdatedText = String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+      els.updatedLabel.textContent = "更新於 " + lastUpdatedText + (failCount > 0 ? "（部分讀取失敗）" : "");
+    }
   }
 
   function startApp(){
