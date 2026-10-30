@@ -259,6 +259,11 @@
   }
   input[type="range"]{width:100%;accent-color:var(--amber);}
   .voice-note{color:var(--text-dim);font-size:13.5px;line-height:1.5;}
+  .voice-diag{
+    display:none;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;
+    font-size:12px;line-height:1.5;color:var(--text-dim);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px;
+  }
   .preset-row{display:flex;gap:8px;}
   .preset-row .btn{padding:11px 6px;font-size:15px;}
   details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
@@ -469,6 +474,8 @@
             <button class="btn btn-ghost" id="presetYounger">更年輕</button>
           </div>
           <button class="btn btn-ghost" id="voiceTestBtn">▶ 試聽</button>
+          <button class="btn btn-ghost" id="voiceDiagBtn" style="padding:11px;font-size:14.5px;">🔍 診斷：列出瀏覽器睇到嘅全部語音</button>
+          <div class="voice-diag" id="voiceDiag"></div>
         </div>
       </details>
       <details>
@@ -1107,6 +1114,16 @@
     els.voicePitch.addEventListener("change", () => {
       settings.speechPitch = parseFloat(els.voicePitch.value);
       saveSettings();
+    });
+    els.voiceDiagBtn.addEventListener("click", () => {
+      const voices = speechSynthesis.getVoices() || [];
+      const lines = voices.map(v => [
+        v.name, v.lang, v.voiceURI,
+        v.localService ? "local" : "remote",
+        v.default ? "default" : ""
+      ].filter(Boolean).join(" | "));
+      els.voiceDiag.textContent = "共 " + voices.length + " 個語音\n" + lines.join("\n");
+      els.voiceDiag.style.display = "block";
     });
     els.presetNatural.addEventListener("click", () => applyPreset(1.0, 1.0));
     els.presetYoung.addEventListener("click", () => applyPreset(1.2, 1.1));
