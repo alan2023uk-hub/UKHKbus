@@ -626,6 +626,26 @@
       return (res && res.data && res.data.name_tc) ? res.data.name_tc : ("車站 " + stopId.slice(-4));
     }catch(e){ return "車站 " + stopId.slice(-4); }
   }
+  // 一次過攞晒全部 KMB 車站名（只發 1 個請求），喺記憶體入面按 stop id 配對，
+  // 取代以前逐個站查名（一條路線去程＋返程約 80 個請求）。
+  // 成功後同一個頁面期間會重用；失敗嘅話回傳 null，由 kmbResolveStops
+  // 退回舊做法逐個站查名，所以最差情況都同以前一樣。
+  let kmbStopMapPromise = null;
+  function kmbLoadStopMap(){
+    if (!kmbStopMapPromise){
+      kmbStopMapPromise = fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/stop")
+        .then(res => {
+          const arr = (res && Array.isArray(res.data)) ? res.data : [];
+          const map = new Map();
+          arr.forEach(st => { if (st && st.stop && st.name_tc) map.set(st.stop, st.name_tc); });
+          if (map.size === 0) throw new Error("empty stop list");
+          return map;
+        })
+        .catch(() => { kmbStopMapPromise = null; return null; });
+    }
+    return kmbStopMapPromise;
+  }
+
   async function kmbResolveDirectionData(route, dir){
     for (const st of [1,2,3]){
       try{
@@ -643,8 +663,14 @@
     const dirParam = direction === "outbound" ? "outbound" : "inbound";
     const result = await kmbResolveDirectionData(route, dirParam);
     if (result.stopsRaw.length === 0) return { stops: [], destName: "" };
+    const nameMap = await kmbLoadStopMap();
     const stops = await Promise.all(
-      result.stopsRaw.map(async s => ({ seq: s.seq, stop: s.stop, name: await kmbFetchStopName(s.stop) }))
+      result.stopsRaw.map(async s => ({
+        seq: s.seq,
+        stop: s.stop,
+        // 優先用一次過攞到嘅站名表；表攞唔到或者冇呢個站先逐個查
+        name: (nameMap && nameMap.get(s.stop)) || await kmbFetchStopName(s.stop),
+      }))
     );
     const destName = result.routeInfo ? result.routeInfo.dest_tc : "";
     return { stops, destName };
@@ -784,6 +810,7 @@
 
   els.pickHk.addEventListener("click", () => {
     draft.city = "hk";
+    kmbLoadStopMap();   // 趁用戶打路線編號嗰陣預先載入站名表
     els.routeHint.textContent = "輸入路線編號，多條同一站可用逗號分開（例如日更／通宵線）：A31,NA31";
     els.routeInput.placeholder = "例如：A31";
     showFlowStep("step-route");
@@ -795,12 +822,30 @@
     showFlowStep("step-route");
   });
 
+  // 檢查一條路線係咪存在（去程或返程其中一邊有車站資料就算）。
+  // 注意：網絡出錯同「真係搵唔到」暫時分唔開，所以錯誤提示會兩個可能都提。
+  async function routeExists(city, route){
+    if (city === "hk"){
+      const [a, b] = await Promise.all([
+        kmbResolveDirectionData(route, "outbound"),
+        kmbResolveDirectionData(route, "inbound"),
+      ]);
+      return a.stopsRaw.length > 0 || b.stopsRaw.length > 0;
+    }
+    const [a, b] = await Promise.all([
+      tflResolveStops(route, "outbound"),
+      tflResolveStops(route, "inbound"),
+    ]);
+    return a.length > 0 || b.length > 0;
+  }
+
   els.routeNextBtn.addEventListener("click", async () => {
     const raw = els.routeInput.value.trim();
     if (!raw) return;
-    const routeList = draft.city === "hk"
+    const parsedRoutes = draft.city === "hk"
       ? raw.toUpperCase().split(",").map(r => r.trim()).filter(Boolean)
       : raw.split(",").map(r => r.trim()).filter(Boolean);
+    const routeList = Array.from(new Set(parsedRoutes));   // 去重，例如 A31,A31
     if (routeList.length === 0) return;
     draft.routes = routeList;
 
@@ -809,6 +854,9 @@
     els.loadError.innerHTML = "";
 
     const primaryRoute = routeList[0];
+    // 其餘路線（第 2 條起）同第一條嘅車站查詢同時進行，逐條確認存在
+    const otherRoutes = routeList.slice(1);
+    const otherChecks = Promise.all(otherRoutes.map(r => routeExists(draft.city, r)));
     let outboundStops = [], inboundStops = [];
     if (draft.city === "hk"){
       const [ob, ib] = await Promise.all([
@@ -826,12 +874,17 @@
       inboundStops = ib;
     }
 
-    if (outboundStops.length === 0 || inboundStops.length === 0){
+    const otherResults = await otherChecks;
+    const missing = [];
+    if (outboundStops.length === 0 || inboundStops.length === 0) missing.push(primaryRoute);
+    otherRoutes.forEach((r, i) => { if (!otherResults[i]) missing.push(r); });
+
+    if (missing.length > 0){
       const hint = draft.city === "hk"
-        ? "請檢查路線編號有冇打錯（大小寫、有冇多餘空格）。"
-        : "請檢查路線編號有冇打錯（例如夜線要打 N87 唔係 87N）。";
+        ? "請檢查路線編號有冇打錯（有冇多餘空格），或者網絡係咪暫時有問題。"
+        : "請檢查路線編號有冇打錯（例如夜線要打 N87 唔係 87N），或者網絡係咪暫時有問題。";
       els.loadError.innerHTML =
-        '<div class="error-box">搵唔到路線「' + escapeHtml(primaryRoute) + '」嘅去程／返程車站資料，' + hint + '</div>' +
+        '<div class="error-box">搵唔到路線「' + missing.map(escapeHtml).join("、") + '」嘅車站資料，' + hint + '</div>' +
         '<button class="btn btn-ghost" id="backToRouteBtn" style="margin-top:12px;">返回重新輸入</button>';
       const backBtn = document.getElementById("backToRouteBtn");
       if (backBtn) backBtn.addEventListener("click", () => showFlowStep("step-route"));
