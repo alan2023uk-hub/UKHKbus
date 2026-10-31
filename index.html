@@ -430,6 +430,158 @@
     background:transparent;border:none;color:var(--text-dim);font-size:16px;
     font-family:var(--font-body);cursor:pointer;padding:8px;
   }
+
+  /* =====================================================================
+     輕鬆檢視（大字、高對比；方便視力唔好嘅人）
+     只加「外觀」：全部規則都掛喺 body.easy 之下，唔開啟就完全冇影響，
+     亦唔改動任何查詢、播報、設定功能。顏色用黃／橙／米黃，避開白、紅、藍。
+     字體大小由 JS 設定 <html> 嘅 font-size，下面全部用 rem。
+     ===================================================================== */
+  .easy-bar{display:none;}
+  body.easy{
+    --bg:#000000;--panel:#0D0C06;--panel-2:#221F0C;--line:#C9B24A;
+    --amber:#FFD60A;--text:#FFF6D6;--text-dim:#F0E6B4;--text-faint:#DDD196;
+    line-height:1.35;
+  }
+  body.easy.ez-light{
+    --bg:#FFF3C4;--panel:#FFE79A;--panel-2:#FFDB70;--line:#000000;
+    --amber:#FFB300;--text:#000000;--text-dim:#1B1500;--text-faint:#2B2200;
+  }
+  body.easy .pulse{display:none;}
+
+  /* 標題同按鈕列 */
+  body.easy header{padding:calc(env(safe-area-inset-top) + .6rem) 1rem .5rem 1rem;flex-wrap:wrap;gap:.5rem;}
+  body.easy .brand h1{font-size:2rem;white-space:normal;overflow:visible;text-overflow:clip;}
+  body.easy .icon-btn{
+    width:3rem;height:3rem;border-radius:.8rem;font-size:1.45rem;flex-shrink:0;
+    border:2px solid var(--line);color:var(--text);
+  }
+  body.easy #main-screen .header-actions{width:100%;justify-content:space-between;gap:.5rem;flex-wrap:wrap;}
+  body.easy #main-screen .header-actions .icon-btn{flex:1 1 3rem;width:auto;min-width:0;}
+  body.easy .icon-btn.speaking{background:var(--amber);color:#000;border-color:#000;}
+  body.easy .easy-bar{display:flex;flex-wrap:wrap;gap:.4rem;padding:0 1rem .5rem 1rem;}
+  .ez-btn{
+    flex:1 1 auto;min-width:0;min-height:2.7rem;border-radius:.8rem;
+    border:2px solid var(--line);background:var(--panel-2);color:var(--text);
+    font-size:1.05rem;font-weight:800;font-family:var(--font-body);cursor:pointer;padding:0 .2rem;
+    white-space:nowrap;
+  }
+  .ez-btn:active{background:var(--amber);color:#000;}
+  .ez-btn:disabled{opacity:.35;}
+
+  /* 主畫面 */
+  body.easy main{padding:0 1rem 1rem 1rem;}
+  body.easy .updated-row{font-size:1.05rem;color:var(--text-dim);flex-wrap:wrap;gap:.1rem .8rem;margin-bottom:.6rem;}
+  /* 為咗畀到站時間佔最大位置：呢兩項只係輔助資訊／工具，輕鬆檢視入面收埋；撳「標準」就會照常出現 */
+  body.easy .filter-hint,
+  body.easy #copySpeakUrlBtn{display:none !important;}
+  body.easy .group-list{gap:1rem;}
+  body.easy .group-card{
+    background:var(--panel);border:3px solid var(--line);border-radius:1.1rem;
+    padding:.8rem 1rem .3rem 1rem;
+  }
+  body.easy .group-head{flex-wrap:wrap;gap:.4rem .6rem;margin-bottom:.4rem;}
+  /* 去程／回程用文字標示（唔再淨靠箭嘴圖示） */
+  body.easy .group-head .arrow{
+    order:1;width:auto;height:auto;padding:.3rem .8rem;border-radius:.7rem;
+    font-size:0;background:var(--amber) !important;color:#000;border:2px solid #000;
+  }
+  body.easy .group-head .arrow::after{font-size:1.25rem;font-weight:800;line-height:1.2;}
+  body.easy .group-card[data-leg="outbound"] .group-head .arrow::after{content:"去程 →";}
+  body.easy .group-card[data-leg="inbound"] .group-head .arrow::after{content:"回程 ←";}
+  body.easy .group-card[data-city="london"][data-leg="outbound"] .group-head .arrow::after{content:"🇬🇧 去程 →";}
+  body.easy .group-card[data-city="london"][data-leg="inbound"] .group-head .arrow::after{content:"🇬🇧 回程 ←";}
+  body.easy .group-card[data-city="hk"][data-leg="outbound"] .group-head .arrow::after{content:"🇭🇰 去程 →";}
+  body.easy .group-card[data-city="hk"][data-leg="inbound"] .group-head .arrow::after{content:"🇭🇰 回程 ←";}
+  body.easy .group-head .city-tag{display:none;}
+  body.easy .speak-btn{
+    order:3;margin-left:auto;width:3.2rem;height:2.6rem;font-size:1.3rem;
+    border:2px solid var(--line);color:var(--amber);
+  }
+  body.easy .group-head .stop-name{
+    order:4;flex:1 0 100%;font-size:1.5rem;line-height:1.2;
+    white-space:normal;overflow:visible;text-overflow:clip;
+  }
+  /* 每班車：第一行 路線＋時間，第二行 目的地 */
+  body.easy .g-row{
+    display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+    gap:.1rem .8rem;padding:.6rem 0;border-top:2px solid var(--line);
+  }
+  body.easy .g-row:first-of-type{border-top:none;}
+  body.easy .route-badge{
+    order:1;font-size:1.5rem;min-width:4rem;padding:.25rem .7rem;border-radius:.6rem;
+    background:var(--amber) !important;color:#000 !important;border:2px solid #000;
+  }
+  body.easy .eta{
+    order:2;margin-left:auto;white-space:nowrap;font-size:2rem;font-weight:800;
+    text-shadow:none;letter-spacing:0;color:var(--amber);
+  }
+  body.easy .g-row.top .eta{font-size:3rem;}
+  body.easy.ez-light .eta{color:#000;}
+  body.easy .eta small{font-size:1.15rem;color:var(--text);margin-left:.25rem;font-weight:700;}
+  body.easy .g-row .dest{
+    order:3;flex:1 0 100%;font-size:1.2rem;color:var(--text);font-weight:600;
+    white-space:normal;overflow:visible;text-overflow:clip;
+  }
+  body.easy .g-empty{font-size:1.2rem;color:var(--text);padding:1rem 0;}
+  body.easy .g-empty.err{color:#FFB84D;font-weight:700;}
+  body.easy.ez-light .g-empty.err{color:#6B3300;}
+  body.easy .empty-state .big{font-size:1.5rem;}
+  body.easy .empty-state .small{font-size:1.15rem;}
+  body.easy footer{font-size:1rem;color:var(--text-dim);}
+
+  /* 設定／管理畫面 */
+  body.easy #flow-screen{padding:0 1rem 1.5rem 1rem;}
+  body.easy .flow-title{font-size:2rem;}
+  body.easy .flow-sub{font-size:1.05rem !important;}
+  body.easy .btn{font-size:1.3rem;padding:1rem;min-height:3.6rem;}
+  body.easy .btn-ghost{color:var(--text);border:2px solid var(--line);}
+  body.easy input[type="text"]{font-size:1.3rem;border:2px solid var(--line);}
+  body.easy select{font-size:1.2rem;border:2px solid var(--line);}
+  body.easy .voice-note{font-size:1.1rem;color:var(--text-dim);}
+  body.easy details{border:2px solid var(--line);}
+  body.easy details summary{font-size:1.2rem;color:var(--text);}
+  body.easy .stop-item{font-size:1.4rem;border:2px solid var(--line);}
+  /* 路線列：文字佔成行，三個掣喺下面一行靠右，唔會逼窄文字 */
+  body.easy .watch-item{border:2px solid var(--line);padding:1rem;flex-wrap:wrap;}
+  body.easy .watch-item .wi-main{flex:1 0 100%;min-width:0;}
+  body.easy .watch-item .wi-check + .wi-main{flex:1 1 0;}   /* 揀選模式（冇掣）：剔選框同文字同一行 */
+  body.easy .watch-item .wi-cfg{margin-left:auto;}
+  body.easy .watch-item .wi-route{font-size:1.5rem;}
+  body.easy .watch-item .wi-sub{font-size:1.1rem;color:var(--text-dim);white-space:normal;}
+  body.easy .watch-item .wi-check{width:2.2rem;height:2.2rem;font-size:1.3rem;border:2px solid var(--line);}
+  body.easy .watch-item .wi-del,
+  body.easy .watch-item .wi-link,
+  body.easy .watch-item .wi-cfg{width:3rem;height:3rem;font-size:1.3rem;}
+  body.easy .watch-item .wi-del,
+  body.easy .watch-item .wi-link{border:2px solid var(--line);}
+  body.easy .watch-item .wi-del{background:rgba(255,150,0,0.22);color:#FFB84D;}
+  body.easy.ez-light .watch-item .wi-del{background:rgba(0,0,0,0.1);color:#000;}
+  body.easy.ez-light .watch-item .wi-link,
+  body.easy.ez-light .watch-item .wi-check,
+  body.easy.ez-light .speak-btn{color:#000;}
+  body.easy .select-bar .sb-count{font-size:1.1rem;}
+  body.easy .select-bar button{font-size:1.1rem;padding:.7rem 1rem;}
+  body.easy .cfg-row{font-size:1.15rem;}
+  body.easy .cfg-row input{width:1.7rem;height:1.7rem;}
+  body.easy #configOverlay .btn,
+  body.easy #sayOverlay .btn{font-size:1.25rem;padding:.9rem;max-width:30rem;}
+  body.easy #configOverlay .so-close,
+  body.easy #sayOverlay .so-close,
+  body.easy #speakOverlay .so-close{font-size:1.25rem;color:var(--text);text-decoration:underline;}
+  body.easy #configOverlay .so-title{font-size:1.8rem;}
+  body.easy #configOverlay .voice-note{font-size:1.05rem;}
+  body.easy #configOverlay textarea{font-size:1.1rem;border:2px solid var(--line);}
+  body.easy #configPickList{border:2px solid var(--line);}
+  body.easy #toast{font-size:1.2rem;}
+  body.easy #speakOverlay,
+  body.easy #sayOverlay,
+  body.easy #configOverlay{background:var(--bg);}
+  body.easy #speakOverlay .so-title,
+  body.easy #sayOverlay .so-title{font-size:2rem;}
+  body.easy #speakOverlay .so-big,
+  body.easy #sayOverlay .so-big{font-size:1.8rem;}
+  body.easy .say-text{font-size:1.2rem;}
   #toast{
     position:fixed;left:50%;transform:translateX(-50%);
     bottom:calc(24px + env(safe-area-inset-bottom));z-index:60;display:none;
@@ -452,9 +604,17 @@
         <button class="icon-btn" id="speakAllBtn" title="廣東話播報到站時間" aria-label="播報">🗣️</button>
         <button class="icon-btn" id="backToAllBtn" title="返回全部路線" style="display:none;">☰</button>
         <button class="icon-btn" id="refreshBtn" title="立即刷新">⟳</button>
+        <button class="icon-btn" id="easyToggleBtn" title="輕鬆檢視（大字、高對比）" aria-label="輕鬆檢視">👁</button>
         <button class="icon-btn" id="manageBtn" title="管理追蹤">⚙</button>
       </div>
     </header>
+    <!-- 輕鬆檢視工具列：只喺輕鬆檢視模式顯示 -->
+    <div class="easy-bar" id="easyBar">
+      <button class="ez-btn" id="ezSmallerBtn" aria-label="縮細字體">A－</button>
+      <button class="ez-btn" id="ezBiggerBtn" aria-label="放大字體">A＋</button>
+      <button class="ez-btn" id="ezThemeBtn" aria-label="切換黑底或米黃底">🌓 底色</button>
+      <button class="ez-btn" id="ezExitBtn" aria-label="返回標準檢視">標準</button>
+    </div>
     <main>
       <div class="updated-row">
         <span id="watchCountLabel"></span>
@@ -674,6 +834,53 @@
   }
 
   const urlParams = new URLSearchParams(location.search);
+
+  // ===================== 輕鬆檢視（大字、高對比，方便視力唔好嘅人）=====================
+  // 只係加一層「外觀」：用 body 嘅 class 覆蓋樣式，唔會改動任何查詢、播報、設定嘅功能。
+  // 偏好存喺獨立嘅 localStorage key，唔會影響原有設定資料。
+  // 網址加 ?easy=1 可以直接用輕鬆檢視打開（?easy=0 就強制用標準檢視）。
+  const EASY_KEY = "multicitybus.easy";
+  const EASY_FONT_PX = [18, 21, 25, 30];     // 4 級基準字體（px）
+  const easyPrefs = { on: false, size: 1, theme: "dark" };
+  try{
+    const rawEasy = localStorage.getItem(EASY_KEY);
+    if (rawEasy){
+      const pe = JSON.parse(rawEasy);
+      easyPrefs.on = pe.on === true;
+      if (Number.isInteger(pe.size) && pe.size >= 0 && pe.size < EASY_FONT_PX.length) easyPrefs.size = pe.size;
+      if (pe.theme === "light") easyPrefs.theme = "light";
+    }
+  }catch(e){}
+  const easyParam = urlParams.get("easy");
+  if (easyParam === "1") easyPrefs.on = true;
+  else if (easyParam === "0") easyPrefs.on = false;
+  function saveEasy(){
+    try{ localStorage.setItem(EASY_KEY, JSON.stringify(easyPrefs)); }catch(e){}
+  }
+  function applyEasy(){
+    const light = easyPrefs.on && easyPrefs.theme === "light";
+    document.body.classList.toggle("easy", easyPrefs.on);
+    document.body.classList.toggle("ez-light", light);
+    document.documentElement.style.fontSize = easyPrefs.on ? EASY_FONT_PX[easyPrefs.size] + "px" : "";
+    const tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) tc.setAttribute("content", light ? "#FFF3C4" : (easyPrefs.on ? "#000000" : "#0B0D0F"));
+    els.easyToggleBtn.classList.toggle("speaking", easyPrefs.on);
+    els.ezSmallerBtn.disabled = easyPrefs.size <= 0;
+    els.ezBiggerBtn.disabled = easyPrefs.size >= EASY_FONT_PX.length - 1;
+  }
+  els.easyToggleBtn.addEventListener("click", () => { easyPrefs.on = !easyPrefs.on; saveEasy(); applyEasy(); });
+  els.ezExitBtn.addEventListener("click", () => { easyPrefs.on = false; saveEasy(); applyEasy(); });
+  els.ezBiggerBtn.addEventListener("click", () => {
+    if (easyPrefs.size < EASY_FONT_PX.length - 1){ easyPrefs.size++; saveEasy(); applyEasy(); }
+  });
+  els.ezSmallerBtn.addEventListener("click", () => {
+    if (easyPrefs.size > 0){ easyPrefs.size--; saveEasy(); applyEasy(); }
+  });
+  els.ezThemeBtn.addEventListener("click", () => {
+    easyPrefs.theme = easyPrefs.theme === "light" ? "dark" : "light";
+    saveEasy(); applyEasy();
+  });
+  applyEasy();
 
   let focusWatches = null;
   let dataParamInvalid = false;   // 有 ?d= 但完全冇可用資料
@@ -1832,6 +2039,8 @@
 
       const cardEl = document.createElement("div");
       cardEl.className = "group-card";
+      cardEl.dataset.leg = card.leg;   // 輕鬆檢視用嚟顯示「去程／回程」同城市旗幟
+      cardEl.dataset.city = card.city;
       // 每個追蹤只喺「去程」卡放一個播報掣，播報時會同時讀去程同回程
       const speakBtnHtml = (SPEECH_OK && card.leg === "outbound")
         ? '<button class="speak-btn' + (speechActive ? " speaking" : "") + '" title="播報呢條路線" aria-label="播報">' + (speechActive ? "⏹" : "🗣️") + '</button>'
