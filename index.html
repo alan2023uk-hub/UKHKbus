@@ -401,11 +401,24 @@
   /* ===== 產生 config_bus.txt ===== */
   #configOverlay{
     position:fixed;inset:0;z-index:50;display:none;
-    flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    flex-direction:column;align-items:center;justify-content:center;
     background:rgba(11,13,15,0.97);padding:24px;text-align:center;
+  }
+  #configOverlay .cfg-panel{
+    width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;
   }
   #configOverlay .so-title{font-size:22px;font-weight:800;}
   #configOverlay .voice-note{max-width:440px;}
+  #configPickList{
+    width:100%;max-width:440px;max-height:44vh;overflow:auto;text-align:left;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  }
+  .cfg-row{
+    display:flex;align-items:center;gap:12px;padding:12px 14px;
+    border-bottom:1px solid var(--line);cursor:pointer;font-size:15px;line-height:1.4;
+  }
+  .cfg-row:last-child{border-bottom:none;}
+  .cfg-row input{width:22px;height:22px;flex-shrink:0;accent-color:var(--amber);}
   #configOverlay textarea{
     width:100%;max-width:440px;height:40vh;resize:none;
     background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;
@@ -466,7 +479,7 @@
     <!-- 管理清單 -->
     <div class="flow-step active" id="step-manage">
       <p class="flow-sub">撳路線右邊嘅 🔗 可以攞到嗰條路線專屬嘅網址；撳「揀幾條砌埋一個捷徑」可以自訂一個捷徑包含你想要嘅幾條路線。跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</p>
-      <p class="flow-sub" style="font-size:14.5px;">撳 📄 會複製嗰條路線喺 config_bus.txt 入面嘅一行；下面「產生 config_bus.txt」可以一次過砌好全部路線。</p>
+      <p class="flow-sub" style="font-size:14.5px;">撳 📄 會複製嗰條路線喺 config_bus.txt 入面嘅一行；下面「產生 config_bus.txt」可以剔選路線，一次過砌好。</p>
       <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
       <div class="select-bar" id="selectBar">
         <span class="sb-count" id="selectCount">已揀 0 條</span>
@@ -478,7 +491,7 @@
       <button class="btn btn-ghost" id="selectModeBtn">☑️ 揀幾條砌埋一個捷徑</button>
       <div class="stop-list" id="manageList"></div>
       <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
-      <button class="btn btn-ghost" id="configFileBtn" style="display:none;">📄 產生 config_bus.txt（全部路線）</button>
+      <button class="btn btn-ghost" id="configFileBtn" style="display:none;">📄 產生 config_bus.txt（可揀路線）</button>
       <details id="voiceDetails">
         <summary>播報語音設定（粵語／國語／台灣）</summary>
         <div class="adv-fields">
@@ -574,14 +587,25 @@
   <button class="btn btn-ghost" id="sayCopyBtn" style="display:none;">複製文字</button>
   <button class="so-close" id="sayCloseBtn">睇畫面</button>
 </div>
-<!-- 產生 config_bus.txt：將所有追蹤路線砌成 Scriptable 播報腳本用嘅設定檔 -->
+<!-- 產生 config_bus.txt：揀路線 → 砌成 Scriptable 播報腳本用嘅設定檔 -->
 <div id="configOverlay">
-  <div class="so-title">📄 config_bus.txt</div>
-  <div class="voice-note">路線名稱可以直接修改（唔好用半形逗號「,」同「=」）。撳「複製全部」後貼入 config_bus.txt 取代原有內容，或者儲存為檔案。</div>
-  <textarea id="configText" wrap="off" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
-  <button class="btn btn-primary" id="configCopyBtn">複製全部</button>
-  <button class="btn btn-ghost" id="configSaveBtn">💾 儲存為檔案</button>
-  <button class="so-close" id="configCloseBtn">關閉</button>
+  <div class="cfg-panel" id="configPick">
+    <div class="so-title">📄 揀路線</div>
+    <div class="voice-note">剔選要放入 config_bus.txt 嘅路線（預設全選）。選單會自動排好：倫敦先、香港後，各組按路線號碼由小到大。</div>
+    <div id="configPickList"></div>
+    <button class="btn btn-ghost" id="configToggleAllBtn">全不選</button>
+    <button class="btn btn-primary" id="configMakeBtn">產生</button>
+    <button class="so-close" id="configCloseBtn2">關閉</button>
+  </div>
+  <div class="cfg-panel" id="configResult" style="display:none;">
+    <div class="so-title">📄 config_bus.txt</div>
+    <div class="voice-note">路線名稱可以直接修改（唔好用半形逗號「,」同「=」）。撳「複製全部」後貼入 config_bus.txt 取代原有內容，或者儲存為檔案。</div>
+    <textarea id="configText" wrap="off" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+    <button class="btn btn-primary" id="configCopyBtn">複製全部</button>
+    <button class="btn btn-ghost" id="configSaveBtn">💾 儲存為檔案</button>
+    <button class="btn btn-ghost" id="configBackBtn">← 返回揀路線</button>
+    <button class="so-close" id="configCloseBtn">關閉</button>
+  </div>
 </div>
 <div id="toast"></div>
 
@@ -1106,13 +1130,13 @@
   const CONFIG_HEADER = [
     "# ===== config_bus.txt 格式說明（以 # 開頭的行不會被讀取）=====",
     "# 每行一條路線，格式：顯示名稱=網址",
-    "# 範例：🇬🇧 131號線 St Joseph's Church-Francis Grove=https://……?d=……",
+    "# 範例：🇬🇧 131 St Joseph's Church-Francis Grove=https://……?d=……",
     "# 1. 名稱與網址以第一個「=」分隔；名稱內不可含「=」",
     "# 2. 名稱不可含半形逗號「,」（全形「，」可以）",
     "# 3. 名稱不可重複，重複時後面的會蓋掉前面的",
     "# 4. 空行會被忽略；沒有「=」的行也會被忽略",
     "# 5. 「#」必須是該行的第一個字元，前面不可有空格",
-    "# 6. 選單順序與檔案中的行順序相同；只有一條路線時不會彈出選單",
+    "# 6. 選單順序與檔案中的行順序相同（網頁產生時已排好：倫敦在前、香港在後，各組按路線號碼由小到大）；只有一條路線時不會彈出選單",
     "# 7. 每條網址只放一條路線，並須同時有去程站與回程站",
     "# 8. 本檔可在網頁「管理追蹤」按 📄 自動產生；也可手動複製「撳一下播報」網址，前面加「名稱=」",
     "# 9. 名稱最前面的 🇬🇧（倫敦）、🇭🇰（香港）旗幟由網頁自動加上；名稱沒有旗幟時，腳本會按城市自動補上",
@@ -1127,10 +1151,28 @@
       .replace(/^#+/, "")         // 以 # 開頭會變成註解
       .trim();
   }
-  // 名稱 = 旗幟 路線號線 去程站名-回程站名（🇭🇰 香港、🇬🇧 倫敦放喺最前面）；站名尾部嘅站號（例如 (TW952)）會去掉
+  // 排序：倫敦先、香港後；各組按路線號碼（連同號碼前嘅英文字母）由小到大：
+  // 冇字母開頭嘅排最前（57、131、493），之後按字母（A31、NA31），同字母再按數字大小
+  function routeSortKey(w){
+    const r = String((w.routes && w.routes[0]) || "");
+    const m = r.match(/^([A-Za-z]*)(\d*)(.*)$/);
+    return { pre: m[1].toUpperCase(), num: m[2] === "" ? 0 : parseInt(m[2], 10), suf: m[3] };
+  }
+  function sortWatchesForConfig(list){
+    return list.slice().sort((a, b) => {
+      const ca = a.city === "hk" ? 1 : 0, cb = b.city === "hk" ? 1 : 0;
+      if (ca !== cb) return ca - cb;
+      const ka = routeSortKey(a), kb = routeSortKey(b);
+      if (ka.pre !== kb.pre) return ka.pre < kb.pre ? -1 : 1;
+      if (ka.num !== kb.num) return ka.num - kb.num;
+      if (ka.suf !== kb.suf) return ka.suf < kb.suf ? -1 : 1;
+      return 0;
+    });
+  }
+  // 名稱 = 旗幟 路線 去程站名-回程站名（🇭🇰 香港、🇬🇧 倫敦放喺最前面）；站名尾部嘅站號（例如 (TW952)）會去掉
   function configNameBase(w){
     const stripCode = str => String(str || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
-    return (w.city === "hk" ? "🇭🇰" : "🇬🇧") + " " + w.routes.join("、") + "號線 " +
+    return (w.city === "hk" ? "🇭🇰" : "🇬🇧") + " " + w.routes.join("、") + " " +
       stripCode(w.outbound.stopName) + "-" + stripCode(w.inbound.stopName);
   }
   // 單條路線嘅播報網址：d= 帶路線同車站資料，speak=1 加語音設定（同「複製撳一下播報網址」一致）
@@ -1150,12 +1192,12 @@
       let uniq = name, n = 2;
       while (used.has(uniq)){ uniq = name + " " + n; n++; }
       used.add(uniq);
-      return { name: uniq, line: uniq + "=" + configSpeakUrl(w) };
+      return { id: w.id, name: uniq, line: uniq + "=" + configSpeakUrl(w) };
     });
   }
   function buildConfigText(list){
     return CONFIG_HEADER.join("\n") + "\n\n" +
-      buildConfigEntries(list).map(e => e.line).join("\n") + "\n";
+      buildConfigEntries(sortWatchesForConfig(list)).map(e => e.line).join("\n") + "\n";
   }
   async function copyText(text, fallbackEl){
     try{
@@ -1198,17 +1240,68 @@
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
-  els.configFileBtn.addEventListener("click", () => {
+
+  // ----- 揀路線（剔選方格）-----
+  function configPickBoxes(){
+    return Array.from(els.configPickList.querySelectorAll("input[type=checkbox]"));
+  }
+  function updateConfigPickState(){
+    const boxes = configPickBoxes();
+    const picked = boxes.filter(b => b.checked).length;
+    els.configMakeBtn.textContent = picked > 0 ? "產生（已揀 " + picked + " 條）" : "產生";
+    els.configMakeBtn.disabled = picked === 0;
+    els.configMakeBtn.style.opacity = picked === 0 ? "0.4" : "1";
+    els.configToggleAllBtn.textContent = (boxes.length > 0 && picked === boxes.length) ? "全不選" : "全選";
+  }
+  function openConfigPicker(){
     if (settings.watches.length === 0) return;
-    els.configText.value = buildConfigText(settings.watches);
+    els.configPickList.innerHTML = "";
+    sortWatchesForConfig(settings.watches).forEach(w => {
+      const label = document.createElement("label");
+      label.className = "cfg-row";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = true;
+      cb.dataset.id = w.id;
+      cb.addEventListener("change", updateConfigPickState);
+      const span = document.createElement("span");
+      span.textContent = configNameBase(w);
+      label.appendChild(cb);
+      label.appendChild(span);
+      els.configPickList.appendChild(label);
+    });
+    updateConfigPickState();
+    els.configPick.style.display = "flex";
+    els.configResult.style.display = "none";
     els.configOverlay.style.display = "flex";
+  }
+  els.configFileBtn.addEventListener("click", openConfigPicker);
+  els.configToggleAllBtn.addEventListener("click", () => {
+    const boxes = configPickBoxes();
+    const allOn = boxes.length > 0 && boxes.every(b => b.checked);
+    boxes.forEach(b => { b.checked = !allOn; });
+    updateConfigPickState();
+  });
+  els.configMakeBtn.addEventListener("click", () => {
+    const ids = new Set(configPickBoxes().filter(b => b.checked).map(b => b.dataset.id));
+    const list = settings.watches.filter(w => ids.has(w.id));
+    if (list.length === 0) return;
+    els.configText.value = buildConfigText(list);
+    els.configPick.style.display = "none";
+    els.configResult.style.display = "flex";
+  });
+  els.configBackBtn.addEventListener("click", () => {
+    els.configResult.style.display = "none";
+    els.configPick.style.display = "flex";
   });
   els.configCopyBtn.addEventListener("click", async () => {
     const ok = await copyText(els.configText.value, els.configText);
     showToast(ok ? "已複製，貼入 config_bus.txt 即可" : "複製唔到，請長按文字全選後手動複製");
   });
   els.configSaveBtn.addEventListener("click", () => saveConfigFile(els.configText.value));
-  els.configCloseBtn.addEventListener("click", () => { els.configOverlay.style.display = "none"; });
+  const closeConfigOverlay = () => { els.configOverlay.style.display = "none"; };
+  els.configCloseBtn.addEventListener("click", closeConfigOverlay);
+  els.configCloseBtn2.addEventListener("click", closeConfigOverlay);
 
   // ----- 播報語音設定（管理畫面）-----
   function populateVoiceSelect(){
@@ -1444,7 +1537,7 @@
         if (linkBtn) linkBtn.addEventListener("click", () => { goToWatchView([w.id]); });
         const cfgBtn = div.querySelector(".wi-cfg");
         if (cfgBtn) cfgBtn.addEventListener("click", async () => {
-          const entry = buildConfigEntries(settings.watches)[idx];
+          const entry = buildConfigEntries(sortWatchesForConfig(settings.watches)).find(e => e.id === w.id);
           const ok = await copyText(entry.line);
           showToast(ok ? "已複製 config_bus.txt 一行：" + entry.name : "複製唔到，請改用下面「📄 產生 config_bus.txt」");
         });
