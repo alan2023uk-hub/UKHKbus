@@ -439,8 +439,9 @@
      ===================================================================== */
   .easy-bar{display:none;}
   body.easy{
-    --bg:#000000;--panel:#0D0C06;--panel-2:#221F0C;--line:#C9B24A;
-    --amber:#FFD60A;--text:#FFF6D6;--text-dim:#F0E6B4;--text-faint:#DDD196;
+    /* 配色沿用原版（--bg／--panel／--amber／--text 等一律唔改），
+       只係將分隔線略為提亮，等粗邊框喺深色底上睇得清楚 */
+    --line:#3A4148;
     line-height:1.35;
   }
   body.easy.ez-light{
@@ -457,7 +458,7 @@
     border:2px solid var(--line);color:var(--text);
   }
   body.easy #main-screen .header-actions{width:100%;justify-content:space-between;gap:.5rem;flex-wrap:wrap;}
-  body.easy #main-screen .header-actions .icon-btn{flex:1 1 3rem;width:auto;min-width:0;}
+  body.easy #main-screen .header-actions .icon-btn{flex:1 1 2.2rem;width:auto;min-width:0;}
   body.easy .icon-btn.speaking{background:var(--amber);color:#000;border-color:#000;}
   body.easy .easy-bar{display:flex;flex-wrap:wrap;gap:.4rem;padding:0 1rem .5rem 1rem;}
   .ez-btn{
@@ -484,8 +485,10 @@
   /* 去程／回程用文字標示（唔再淨靠箭嘴圖示） */
   body.easy .group-head .arrow{
     order:1;width:auto;height:auto;padding:.3rem .8rem;border-radius:.7rem;
-    font-size:0;background:var(--amber) !important;color:#000;border:2px solid #000;
+    font-size:0;color:var(--text);border:2px solid var(--line);
   }
+  body.easy .group-card[data-city="london"] .group-head .arrow{border-color:var(--ldn);}
+  body.easy .group-card[data-city="hk"] .group-head .arrow{border-color:var(--hk);}
   body.easy .group-head .arrow::after{font-size:1.25rem;font-weight:800;line-height:1.2;}
   body.easy .group-card[data-leg="outbound"] .group-head .arrow::after{content:"去程 →";}
   body.easy .group-card[data-leg="inbound"] .group-head .arrow::after{content:"回程 ←";}
@@ -510,21 +513,22 @@
   body.easy .g-row:first-of-type{border-top:none;}
   body.easy .route-badge{
     order:1;font-size:1.5rem;min-width:4rem;padding:.25rem .7rem;border-radius:.6rem;
-    background:var(--amber) !important;color:#000 !important;border:2px solid #000;
   }
   body.easy .eta{
     order:2;margin-left:auto;white-space:nowrap;font-size:2rem;font-weight:800;
-    text-shadow:none;letter-spacing:0;color:var(--amber);
+    letter-spacing:0;color:var(--amber);
   }
   body.easy .g-row.top .eta{font-size:3rem;}
-  body.easy.ez-light .eta{color:#000;}
+  body.easy.ez-light .eta{color:#000;text-shadow:none;}
+  body.easy.ez-light .group-head .arrow{background:var(--amber) !important;color:#000;border-color:#000 !important;}
+  body.easy.ez-light .route-badge{border:2px solid #000;}
   body.easy .eta small{font-size:1.15rem;color:var(--text);margin-left:.25rem;font-weight:700;}
   body.easy .g-row .dest{
     order:3;flex:1 0 100%;font-size:1.2rem;color:var(--text);font-weight:600;
     white-space:normal;overflow:visible;text-overflow:clip;
   }
   body.easy .g-empty{font-size:1.2rem;color:var(--text);padding:1rem 0;}
-  body.easy .g-empty.err{color:#FFB84D;font-weight:700;}
+  body.easy .g-empty.err{font-weight:700;}
   body.easy.ez-light .g-empty.err{color:#6B3300;}
   body.easy .empty-state .big{font-size:1.5rem;}
   body.easy .empty-state .small{font-size:1.15rem;}
@@ -555,7 +559,6 @@
   body.easy .watch-item .wi-cfg{width:3rem;height:3rem;font-size:1.3rem;}
   body.easy .watch-item .wi-del,
   body.easy .watch-item .wi-link{border:2px solid var(--line);}
-  body.easy .watch-item .wi-del{background:rgba(255,150,0,0.22);color:#FFB84D;}
   body.easy.ez-light .watch-item .wi-del{background:rgba(0,0,0,0.1);color:#000;}
   body.easy.ez-light .watch-item .wi-link,
   body.easy.ez-light .watch-item .wi-check,
@@ -863,7 +866,7 @@
     document.body.classList.toggle("ez-light", light);
     document.documentElement.style.fontSize = easyPrefs.on ? EASY_FONT_PX[easyPrefs.size] + "px" : "";
     const tc = document.querySelector('meta[name="theme-color"]');
-    if (tc) tc.setAttribute("content", light ? "#FFF3C4" : (easyPrefs.on ? "#000000" : "#0B0D0F"));
+    if (tc) tc.setAttribute("content", light ? "#FFF3C4" : "#0B0D0F");
     els.easyToggleBtn.classList.toggle("speaking", easyPrefs.on);
     els.ezSmallerBtn.disabled = easyPrefs.size <= 0;
     els.ezBiggerBtn.disabled = easyPrefs.size >= EASY_FONT_PX.length - 1;
