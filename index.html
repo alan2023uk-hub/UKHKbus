@@ -564,7 +564,6 @@
       </div>
       <div class="filter-hint" id="filterHint" style="display:none;"></div>
       <button class="btn btn-primary" id="addToHomeBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:calc(15px * var(--fs));">📲 加到桌面</button>
-      <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:calc(15px * var(--fs));">🗣️ 複製「撳一下播報」網址</button>
       <div class="group-list" id="groupList"></div>
     </main>
     <footer>資料來源：data.gov.hk（KMB）／ Transport for London（TfL）</footer>
@@ -596,17 +595,17 @@
           <button class="seg-btn" data-pick-theme="dark" role="radio" aria-checked="true">🌙 晚上</button>
         </div>
       </div>
-      <p class="flow-sub">撳路線右邊嘅 🔗 會打開嗰條路線嘅獨立頁面；撳「揀幾條砌埋一個捷徑」可以自訂一個頁面包含你想要嘅幾條路線。<span id="homeScreenHint">跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</span></p>
+      <p class="flow-sub">撳路線右邊嘅 🔗 會打開嗰條路線嘅獨立頁面；撳「揀幾條合併成一頁」可以自訂一個頁面包含你想要嘅幾條路線。<span id="homeScreenHint">跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</span></p>
       <p class="flow-sub" id="configHint" style="font-size:calc(14.5px * var(--fs));">要攞 config_bus.txt，撳下面「產生 config_bus.txt」，剔選路線後一次過砌好。</p>
       <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
       <div class="select-bar" id="selectBar">
         <span class="sb-count" id="selectCount">已揀 0 條</span>
         <div class="sb-actions">
           <button class="sb-cancel" id="selectCancelBtn">取消</button>
-          <button class="sb-link" id="selectLinkBtn" disabled>攞呢組捷徑</button>
+          <button class="sb-link" id="selectLinkBtn" disabled>打開呢組頁面</button>
         </div>
       </div>
-      <button class="btn btn-ghost" id="selectModeBtn">☑️ 揀幾條砌埋一個捷徑</button>
+      <button class="btn btn-ghost" id="selectModeBtn">☑️ 揀幾條合併成一頁</button>
       <div class="stop-list" id="manageList"></div>
       <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
       <button class="btn btn-ghost" id="configFileBtn" style="display:none;">📄 產生 config_bus.txt（可揀路線）</button>
@@ -727,11 +726,10 @@
 </div>
 <!-- 加到桌面：網頁唔可以自己加入主畫面（瀏覽器限制），所以用呢個說明層教用家下一步點做 -->
 <div id="homeOverlay">
-  <div class="so-title">📲 加到桌面</div>
+  <div class="so-title" id="homeTitle">📲 加到桌面</div>
   <div class="voice-note" id="homeLead"></div>
   <ol class="home-steps" id="homeSteps"></ol>
-  <button class="btn btn-primary" id="homeShareBtn" style="display:none;">📤 分享連結</button>
-  <button class="btn btn-ghost" id="homeCopyBtn">🔗 複製連結</button>
+  <button class="btn btn-primary" id="homeCopyBtn">🔗 複製連結</button>
   <button class="so-close" id="homeCloseBtn">關閉</button>
 </div>
 <div id="toast"></div>
@@ -771,12 +769,13 @@
   }
   // 「加入主畫面」說明：iPhone／iPad 用 Safari；Android 用瀏覽器選單；電腦就加書籤
   function homeScreenHintText(){
-    if (IS_IOS) return "跟住喺嗰個獨立頁面撳「📲 加到桌面」，喺分享選單揀「加入主畫面」，就會建立返嗰個獨立捷徑。";
-    if (IS_ANDROID) return "跟住喺嗰個獨立頁面撳「📲 加到桌面」，再跟畫面步驟（瀏覽器選單 ⋮ →「加到主畫面」）。";
-    return "跟住喺嗰個獨立頁面撳「📲 加到桌面」，再跟畫面步驟加書籤或建立捷徑。";
+    if (IS_IOS) return "跟住喺嗰個獨立頁面撳「📲 點樣加到主畫面」，跟畫面步驟（Safari「…」→「共享」→「加入主畫面」）。";
+    if (IS_ANDROID) return "跟住喺嗰個獨立頁面撳「📲 點樣加到主畫面」，再跟畫面步驟（瀏覽器選單 ⋮ →「加到主畫面」）。";
+    return "跟住喺嗰個獨立頁面撳「📲 加到桌面／書籤」，再跟畫面步驟。";
   }
   function applyPlatformUi(){
     els.homeScreenHint.textContent = homeScreenHintText();
+    els.addToHomeBtn.textContent = homeBtnLabel();
     els.configHint.style.display = IS_IOS ? "" : "none";   // config_bus.txt 只係畀 iPhone／iPad 上嘅 Scriptable 腳本用
   }
 
@@ -1339,17 +1338,6 @@
     els.speakOverlay.style.display = "none";
   });
 
-  // 語音捷徑網址 = 目前獨立捷徑網址加 speak=1
-  function speakUrl(){
-    const u = new URL(location.href);
-    u.searchParams.set("speak", "1");
-    // 將你揀嘅語音同語速一齊帶入網址，獨立捷徑攞唔到 localStorage 都讀得啱
-    if (settings.voiceUri) u.searchParams.set("vn", settings.voiceUri);
-    if (typeof settings.speechRate === "number") u.searchParams.set("vr", String(settings.speechRate));
-    if (typeof settings.speechPitch === "number") u.searchParams.set("vp", String(settings.speechPitch));
-    u.hash = "";
-    return u.toString();
-  }
   // ===================== 產生 config_bus.txt（Scriptable 播報腳本用）=====================
   const CONFIG_HEADER = [
     "# ===== config_bus.txt 格式說明（以 # 開頭的行不會被讀取）=====",
@@ -1362,7 +1350,7 @@
     "# 5. 「#」必須是該行的第一個字元，前面不可有空格",
     "# 6. 選單順序與檔案中的行順序相同（網頁產生時已排好：倫敦在前、香港在後，各組按路線號碼由小到大）；只有一條路線時不會彈出選單",
     "# 7. 每條網址只放一條路線，並須同時有去程站與回程站",
-    "# 8. 本檔可在網頁「管理追蹤」按 📄 自動產生；也可手動複製「撳一下播報」網址，前面加「名稱=」",
+    "# 8. 本檔可在網頁「管理追蹤」按 📄 自動產生",
     "# 9. 名稱最前面的 🇬🇧（倫敦）、🇭🇰（香港）旗幟由網頁自動加上；名稱沒有旗幟時，腳本會按城市自動補上",
     "# 10. 檔案請使用 UTF-8 編碼",
     "# ============================================================="
@@ -1633,16 +1621,6 @@
     }
   }
 
-  els.copySpeakUrlBtn.addEventListener("click", async () => {
-    const url = speakUrl();
-    try{
-      await navigator.clipboard.writeText(url);
-      showToast("已複製語音捷徑網址");
-    }catch(e){
-      window.prompt("複製呢個網址：", url);
-    }
-  });
-
   // ----- 交畀 iPhone 捷徑朗讀（?say=捷徑名）-----
   const sayName = (urlParams.get("say") || "").trim();
   let sayTextValue = "";
@@ -1696,8 +1674,8 @@
 
   // ===================== 加到桌面（獨立路線頁面）=====================
   // 網頁唔可以自己將連結加到主畫面／桌面（瀏覽器嘅安全限制），所以呢粒掣：
-  // 1) iPhone／iPad：直接叫出分享選單，揀「加入主畫面」就得；
-  // 2) 其他裝置（或者叫唔出分享選單）：顯示說明層，列出呢部機下一步點做，並可以複製／分享連結。
+  // 顯示說明層，列出呢部機下一步點做，並可以複製連結。
+  // （唔再叫分享選單：iPhone 嘅網址分享選單入面冇「加入主畫面」，要用 Safari 自己嘅「…」→「共享」。）
   // 加入嘅網址係呢條路線專屬嘅 ?d=... 網址，所以呢粒掣只喺獨立路線頁面出現。
   function currentRouteUrl(){
     const u = new URL(location.href);
@@ -1706,9 +1684,11 @@
     u.hash = "";
     return u.toString();
   }
+  // 手機（iPhone／iPad、Android）叫「點樣加到主畫面」，電腦叫「加到桌面／書籤」
+  function homeBtnLabel(){ return (IS_IOS || IS_ANDROID) ? "📲 點樣加到主畫面" : "📲 加到桌面／書籤"; }
   function homeStepsFor(){
     if (IS_IOS) return [
-      "撳瀏覽器嘅「分享」圖示（方框加向上箭咀）",
+      "撳 Safari 工具列嘅「…」（iPad 係分享圖示），揀「共享」",
       "喺選單向下撥，揀「加入主畫面」",
       "撳右上角「加入」"
     ];
@@ -1723,33 +1703,12 @@
     ];
   }
   function showHomeOverlay(){
-    els.homeLead.textContent = "呢個係呢條路線專屬嘅網址，加到桌面之後一撳就開。瀏覽器唔准網頁自動加入，所以要自己做一次：";
+    els.homeTitle.textContent = homeBtnLabel();
+    els.homeLead.textContent = "呢個係呢條路線專屬嘅網址，加入之後一撳就開。瀏覽器唔准網頁自動加入，所以要自己做一次：";
     els.homeSteps.innerHTML = homeStepsFor().map(s => "<li>" + escapeHtml(s) + "</li>").join("");
-    els.homeShareBtn.style.display = (typeof navigator.share === "function") ? "block" : "none";
-    els.homeShareBtn.textContent = IS_IOS ? "📤 開啟分享選單" : "📤 分享連結畀親友";
     els.homeOverlay.style.display = "flex";
   }
-  async function shareRouteUrl(){
-    if (typeof navigator.share !== "function") return "fail";
-    try{
-      await navigator.share({ title: document.title, url: currentRouteUrl() });
-      return "ok";
-    }catch(e){
-      return (e && e.name === "AbortError") ? "cancel" : "fail";   // 用戶自己取消唔使當失敗
-    }
-  }
-  els.addToHomeBtn.addEventListener("click", async () => {
-    // iPhone／iPad：分享選單入面有「加入主畫面」。shareRouteUrl 喺撳掣嗰一刻就同步叫 navigator.share，先唔會被瀏覽器攔
-    if (IS_IOS){
-      const r = await shareRouteUrl();
-      if (r !== "fail") return;
-    }
-    showHomeOverlay();
-  });
-  els.homeShareBtn.addEventListener("click", async () => {
-    const r = await shareRouteUrl();
-    if (r === "fail") showToast("呢部裝置叫唔出分享選單，請用下面「複製連結」");
-  });
+  els.addToHomeBtn.addEventListener("click", showHomeOverlay);
   els.homeCopyBtn.addEventListener("click", async () => {
     const url = currentRouteUrl();
     try{
@@ -1796,7 +1755,7 @@
   }
 
   function updateSelectBar(){
-    // 得返一條（或者未有）路線嘅時候，「揀幾條砌埋一個捷徑」冇意思，唔顯示
+    // 得返一條（或者未有）路線嘅時候，「揀幾條合併成一頁」冇意思，唔顯示
     const canBundle = settings.watches.length > 1;
     if (!canBundle && selectMode){ selectMode = false; selectedIds = new Set(); }
     els.selectBar.style.display = selectMode ? "flex" : "none";
@@ -2025,7 +1984,6 @@
   async function refreshData(){
     let watchesToShow = settings.watches;
     let isFiltered = false;
-    els.copySpeakUrlBtn.style.display = "none";
 
     if (focusWatches && focusWatches.length > 0){
       // 呢個捷徑嘅路線資料已經直接編碼喺網址度，唔使查 localStorage，
@@ -2038,11 +1996,10 @@
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
-      els.copySpeakUrlBtn.style.display = IS_IOS ? "block" : "none";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = focusWatches.length === 1
-        ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
-        : "🔗 呢個係自訂捷徑，淨係顯示呢 " + focusWatches.length + " 條路線：" + routeLabel;
+        ? "🔗 呢個係「" + routeLabel + "」嘅獨立頁面，淨係顯示呢條路線"
+        : "🔗 呢個係自訂頁面，淨係顯示呢 " + focusWatches.length + " 條路線：" + routeLabel;
       if (dataParamDropped > 0){
         els.filterHint.textContent += "（另有 " + dataParamDropped + " 條資料唔完整，已略過）";
       }
@@ -2056,7 +2013,7 @@
         els.watchCountLabel.textContent = "";
         els.groupList.innerHTML =
           '<div class="empty-state">' +
-            '<div class="big">搵唔到呢個獨立捷徑追蹤嘅路線</div>' +
+            '<div class="big">搵唔到呢個獨立頁面追蹤嘅路線</div>' +
             '<div class="small">可能已經俾你刪除咗。撳左上角 ☰ 返去全部路線嘅清單。</div>' +
           '</div>';
         return;
@@ -2067,17 +2024,16 @@
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
-      els.copySpeakUrlBtn.style.display = IS_IOS ? "block" : "none";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = found.length === 1
-        ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
-        : "🔗 呢個係自訂捷徑，淨係顯示呢 " + found.length + " 條路線：" + routeLabel;
+        ? "🔗 呢個係「" + routeLabel + "」嘅獨立頁面，淨係顯示呢條路線"
+        : "🔗 呢個係自訂頁面，淨係顯示呢 " + found.length + " 條路線：" + routeLabel;
     } else {
       els.mainTitle.textContent = "巴士";
       els.backToAllBtn.style.display = "none";
       if (dataParamInvalid){
         els.filterHint.style.display = "block";
-        els.filterHint.textContent = "⚠️ 呢個捷徑連結嘅資料有問題或者已損毀，所以顯示返全部追蹤嘅路線。";
+        els.filterHint.textContent = "⚠️ 呢個頁面連結嘅資料有問題或者已損毀，所以顯示返全部追蹤嘅路線。";
       } else {
         els.filterHint.style.display = "none";
       }
@@ -2137,8 +2093,8 @@
 
       const cardEl = document.createElement("div");
       cardEl.className = "group-card";
-      // 每個追蹤只喺「去程」卡放一個播報掣，播報時會同時讀去程同回程
-      const speakBtnHtml = (SPEECH_OK && card.leg === "outbound")
+      // 每個追蹤只喺「去程」卡放一個播報掣，播報時會同時讀去程同回程；淨係得一條路線時標題列嘅 🗣️ 已經夠，唔再重複
+      const speakBtnHtml = (SPEECH_OK && card.leg === "outbound" && watchesToShow.length > 1)
         ? '<button class="speak-btn' + (speechActive ? " speaking" : "") + '" title="播報呢條路線" aria-label="播報">' + (speechActive ? "⏹" : "🗣️") + '</button>'
         : "";
 
