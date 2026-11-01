@@ -594,7 +594,6 @@
           <button class="seg-btn" data-pick-theme="dark" role="radio" aria-checked="true">🌙 晚上</button>
         </div>
       </div>
-      <p class="flow-sub" id="configHint" style="display:none;font-size:calc(14.5px * var(--fs));">要攞 config_bus.txt，撳下面「產生 config_bus.txt」，剔選路線後一次過砌好。</p>
       <button class="btn btn-ghost" id="configFileBtn" style="display:none;">📄 產生 config_bus.txt（可揀路線）</button>
       <button class="btn btn-ghost" id="homeClipsBtn" style="display:none;">📲 一次過加到主畫面（用捷徑）</button>
       <details id="voiceDetails">
@@ -747,9 +746,6 @@
     return short
       ? "請喺系統設定安裝中文語音"
       : "請去電腦嘅系統設定安裝中文語音（路徑視乎作業系統）。";
-  }
-  function applyPlatformUi(){
-    els.configHint.style.display = IS_IOS ? "" : "none";   // config_bus.txt 只係畀 iPhone／iPad 上嘅 Scriptable 腳本用
   }
 
   let settings = loadSettings();
@@ -2201,7 +2197,6 @@
   function startApp(){
     showMain();
     refreshData();
-    applyPlatformUi();
     if (sayName && IS_IOS) runSayMode();
     else if (sayName || speakParam) showSpeakOverlay();   // 非 iPhone／iPad 開到 ?say= 連結：「捷徑」用唔到，改為「撳一下播報」用本機語音
     if (refreshTimer) clearInterval(refreshTimer);
