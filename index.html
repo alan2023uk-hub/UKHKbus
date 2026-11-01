@@ -831,6 +831,17 @@
 
   const urlParams = new URLSearchParams(location.search);
 
+  // 剛由「管理追蹤」嘅 🔗 打開（網址帶 add=1）＝ 用家正準備加入主畫面：先至顯示「點樣加到主畫面」掣同提示條。
+  // 之後即刻將 add=1 由網址拿走，咁加入主畫面嘅就係乾淨網址，日後由桌面圖示打開唔會再見到呢啲提示。
+  const justCreated = urlParams.get("add") === "1";
+  if (justCreated){
+    try{
+      const cleanUrl = new URL(location.href);
+      cleanUrl.searchParams.delete("add");
+      history.replaceState(null, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+    }catch(e){}
+  }
+
   // ===================== 顯示設定：字體大小／配色 =====================
   // 只係加一層「外觀」：揀咗嘅選項寫落 <html> 嘅 data-fs／data-theme 屬性，
   // 由 CSS 負責變樣，唔會改動任何查詢、播報、設定嘅功能。
@@ -916,7 +927,7 @@
     return base + "?d=" + encodeURIComponent(toBase64Unicode(JSON.stringify(packWatchesForUrl(chosen))));
   }
   function goToWatchView(ids){
-    location.href = watchViewUrl(Array.isArray(ids) ? ids : [ids]);
+    location.href = watchViewUrl(Array.isArray(ids) ? ids : [ids]) + "&add=1";
   }
   function goToFullList(){
     location.href = location.href.split("?")[0];
@@ -2027,7 +2038,10 @@
       }
     }
 
-    els.addToHomeBtn.style.display = isFiltered ? "block" : "none";   // 「加到桌面」只喺獨立路線頁面出現
+    // 「點樣加到主畫面」掣同橙色提示條：只喺剛由 🔗 打開嘅獨立頁面出現（justCreated）。
+    // 日常由桌面圖示打開就直接睇班次；有資料被略過嘅警告就照顯示
+    els.addToHomeBtn.style.display = (isFiltered && justCreated) ? "block" : "none";
+    if (isFiltered && !justCreated && dataParamDropped === 0) els.filterHint.style.display = "none";
     shownWatches = watchesToShow;
 
     if (watchesToShow.length === 0){
