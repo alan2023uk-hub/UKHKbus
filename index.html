@@ -319,11 +319,6 @@
     background:rgba(255,179,0,0.12);color:var(--amber-ink);
     display:flex;align-items:center;justify-content:center;font-size:calc(15px * var(--fs));cursor:pointer;
   }
-  .watch-item .wi-cfg{
-    flex-shrink:0;width:calc(34px * var(--fs));height:calc(34px * var(--fs));border-radius:10px;
-    background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
-    display:flex;align-items:center;justify-content:center;font-size:calc(15px * var(--fs));cursor:pointer;
-  }
 
   .spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px 0;color:var(--text-dim);font-size:calc(17px * var(--fs));flex:1;}
   .spinner{
@@ -484,7 +479,7 @@
   .watch-item{flex-wrap:wrap;}
   .watch-item .wi-main{flex:1 0 100%;}
   .watch-item .wi-check + .wi-main{flex:1 1 0;}   /* 揀選模式（冇掣）：剔選框同文字同一行 */
-  .watch-item .wi-cfg{margin-left:auto;}
+  .watch-item .wi-link{margin-left:auto;}   /* 🔗 同 ✕ 兩粒掣一齊靠右 */
   .watch-item .wi-sub{white-space:normal;}
   .select-bar{flex-wrap:wrap;}
 
@@ -584,7 +579,7 @@
         </div>
       </div>
       <p class="flow-sub">撳路線右邊嘅 🔗 可以攞到嗰條路線專屬嘅網址；撳「揀幾條砌埋一個捷徑」可以自訂一個捷徑包含你想要嘅幾條路線。跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</p>
-      <p class="flow-sub" style="font-size:calc(14.5px * var(--fs));">撳 📄 會複製嗰條路線喺 config_bus.txt 入面嘅一行；下面「產生 config_bus.txt」可以剔選路線，一次過砌好。</p>
+      <p class="flow-sub" style="font-size:calc(14.5px * var(--fs));">要攞 config_bus.txt，撳下面「產生 config_bus.txt」，剔選路線後一次過砌好。</p>
       <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
       <div class="select-bar" id="selectBar">
         <span class="sb-count" id="selectCount">已揀 0 條</span>
@@ -1683,7 +1678,8 @@
         ? '<div class="wi-check">' + (selectedIds.has(w.id) ? "✓" : "") + '</div>'
         : "";
       const linkHtml = selectMode ? "" : '<div class="wi-link" title="攞獨立捷徑網址">🔗</div>';
-      const cfgHtml = selectMode ? "" : '<div class="wi-cfg" title="複製 config_bus.txt 一行">📄</div>';
+      // 注意：以前每條路線有個 📄 掣可以單獨複製 config_bus.txt 一行，已刪除——
+      // 呢個功能已經包含喺下面「產生 config_bus.txt（可揀路線）」入面（剔一條就得），唔使重複
       const delHtml = selectMode ? "" : '<div class="wi-del">✕</div>';
       div.innerHTML =
         checkHtml +
@@ -1694,7 +1690,7 @@
             ' · ⬅️ ' + escapeHtml(w.inbound.stopName) +
           '</div>' +
         '</div>' +
-        cfgHtml + linkHtml + delHtml;
+        linkHtml + delHtml;
 
       if (selectMode){
         div.addEventListener("click", () => {
@@ -1705,12 +1701,6 @@
       } else {
         const linkBtn = div.querySelector(".wi-link");
         if (linkBtn) linkBtn.addEventListener("click", () => { goToWatchView([w.id]); });
-        const cfgBtn = div.querySelector(".wi-cfg");
-        if (cfgBtn) cfgBtn.addEventListener("click", async () => {
-          const entry = buildConfigEntries(sortWatchesForConfig(settings.watches)).find(e => e.id === w.id);
-          const ok = await copyText(entry.line);
-          showToast(ok ? "已複製 config_bus.txt 一行：" + entry.name : "複製唔到，請改用下面「📄 產生 config_bus.txt」");
-        });
         const delBtn = div.querySelector(".wi-del");
         if (delBtn) delBtn.addEventListener("click", () => {
           settings.watches.splice(idx, 1);
