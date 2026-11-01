@@ -43,7 +43,7 @@
     --overlay:rgba(11,13,15,0.97);
     --scan:rgba(255,255,255,0.012);
     --glow:0 0 8px rgba(255,179,0,0.35);
-    --fs:1;                /* 字體倍數：標準 1／大 1.25／特大 1.5（見下面 data-fs） */
+    --fs:1.25;             /* 字體倍數：標準 1.25／大 1.5／特大 1.75（見下面 data-fs） */
     --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-led: ui-monospace, "SF Mono", "Roboto Mono", "Cascadia Mono", Consolas, monospace;
   }
@@ -445,10 +445,11 @@
      顯示設定：字體大小（標準／大／特大）＋ 配色（白天／晚上）
      只係外觀：用 <html> 嘅 data-fs／data-theme 屬性切換，唔改動任何查詢、播報、設定功能。
      標準字體 = 冇 data-fs；晚上配色 = 冇 data-theme（即係原本嘅套色，一點都冇改）。
-     字體大小：全部字體都係 calc(原本 px * var(--fs))，所以標準時同原本完全一樣。
+     字體大小：全部字體都係 calc(原本 px * var(--fs))。每級加 0.25 倍：標準 1.25／大 1.5／特大 1.75。
+     （原本 1.0 倍嘅舊「標準」已經刪除；舊嘅「大」「特大」現在分別係新嘅「標準」「大」，再補返一級新嘅「特大」。）
      ===================================================================== */
-  :root[data-fs="l"]{--fs:1.25;}
-  :root[data-fs="xl"]{--fs:1.5;}
+  :root[data-fs="l"]{--fs:1.5;}
+  :root[data-fs="xl"]{--fs:1.75;}
 
   /* 白天配色（中性：白／淺灰底、近黑字）。琥珀色當文字用嗰度轉深，確保白底睇得清 */
   :root[data-theme="light"]{
@@ -466,25 +467,26 @@
     --glow:none;
   }
 
-  /* 字體放大（大／特大）時嘅排版：長字（站名、目的地）改為折行顯示，唔再被「…」截走 */
-  :root[data-fs] header{flex-wrap:wrap;gap:8px;}
-  :root[data-fs] .header-actions{margin-left:auto;}
-  :root[data-fs] .brand h1{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;}
-  :root[data-fs] .updated-row{flex-wrap:wrap;gap:4px 14px;}
-  :root[data-fs] .group-head{flex-wrap:wrap;row-gap:8px;}
-  :root[data-fs] .group-head .speak-btn{order:3;margin-left:auto;}
-  :root[data-fs] .group-head .stop-name{order:4;flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;}
-  :root[data-fs] .g-row{flex-wrap:wrap;row-gap:2px;}
-  :root[data-fs] .g-row .route-badge{order:1;}
-  :root[data-fs] .g-row .eta{order:2;margin-left:auto;white-space:nowrap;}
-  :root[data-fs] .g-row .dest{order:3;flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;}
-  :root[data-fs] .g-row.none .dest{order:2;flex:1 1 0;}   /* 冇班次嗰行：「暫無班次」留喺路線號碼旁邊，唔使跳去下一行 */
-  :root[data-fs] .watch-item{flex-wrap:wrap;}
-  :root[data-fs] .watch-item .wi-main{flex:1 0 100%;}
-  :root[data-fs] .watch-item .wi-check + .wi-main{flex:1 1 0;}   /* 揀選模式（冇掣）：剔選框同文字同一行 */
-  :root[data-fs] .watch-item .wi-cfg{margin-left:auto;}
-  :root[data-fs] .watch-item .wi-sub{white-space:normal;}
-  :root[data-fs] .select-bar{flex-wrap:wrap;}
+  /* 版面（標準／大／特大都用呢個）：長字（站名、目的地）折行顯示，唔再被「…」截走。
+     呢段喺原有樣式之後，同級別規則以呢度為準 */
+  header{flex-wrap:wrap;gap:8px;}
+  .header-actions{margin-left:auto;}
+  .brand h1{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;}
+  .updated-row{flex-wrap:wrap;gap:4px 14px;}
+  .group-head{flex-wrap:wrap;row-gap:8px;}
+  .group-head .speak-btn{order:3;margin-left:auto;}
+  .group-head .stop-name{order:4;flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;}
+  .g-row{flex-wrap:wrap;row-gap:2px;}
+  .g-row .route-badge{order:1;}
+  .g-row .eta{order:2;margin-left:auto;white-space:nowrap;}
+  .g-row .dest{order:3;flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;}
+  .g-row.none .dest{order:2;flex:1 1 0;}   /* 冇班次嗰行：「暫無班次」留喺路線號碼旁邊，唔使跳去下一行 */
+  .watch-item{flex-wrap:wrap;}
+  .watch-item .wi-main{flex:1 0 100%;}
+  .watch-item .wi-check + .wi-main{flex:1 1 0;}   /* 揀選模式（冇掣）：剔選框同文字同一行 */
+  .watch-item .wi-cfg{margin-left:auto;}
+  .watch-item .wi-sub{white-space:normal;}
+  .select-bar{flex-wrap:wrap;}
 
   /* 設定畫面頂部嘅「顯示設定」卡 */
   .display-card{
@@ -514,7 +516,10 @@
   var p = JSON.parse(localStorage.getItem("multicitybus.display") || "null");
   if (!p) return;
   var r = document.documentElement;
-  if (p.fs === "l" || p.fs === "xl") r.setAttribute("data-fs", p.fs);
+  // 舊版（冇 v）嘅字體 id 對應到新版：舊 l（大）→ 新 std、舊 xl（特大）→ 新 l、舊 std（已刪除）→ 新 std
+  var fs = p.fs;
+  if (p.v !== 2) fs = ({ std: "std", l: "std", xl: "l" })[fs];
+  if (fs === "l" || fs === "xl") r.setAttribute("data-fs", fs);
   if (p.theme === "light"){
     r.setAttribute("data-theme", "light");
     var m = document.querySelector('meta[name="theme-color"]');
@@ -781,21 +786,29 @@
   // 偏好存喺獨立嘅 localStorage key，唔會影響原有設定資料。
   // （<head> 入面有一小段提早套用嘅 script，用同一個 key，避免開頁閃一下。）
   const DISPLAY_KEY = "multicitybus.display";
+  const DISPLAY_VER = 2;                    // 版本 2：字體級距改為 標準 1.25／大 1.5／特大 1.75
   const FS_LEVELS = ["std", "l", "xl"];     // 標準／大／特大
   const THEMES = ["dark", "light"];         // 晚上（原本套色）／白天（中性）
   const displayPrefs = { fs: "std", theme: "dark" };
+  let displayMigrated = false;
   try{
     const rawDisplay = localStorage.getItem(DISPLAY_KEY);
     if (rawDisplay){
       const pd = JSON.parse(rawDisplay);
-      if (pd && FS_LEVELS.includes(pd.fs)) displayPrefs.fs = pd.fs;
-      if (pd && THEMES.includes(pd.theme)) displayPrefs.theme = pd.theme;
+      if (pd){
+        let fsId = pd.fs;
+        // 舊版（冇 v）嘅字體 id 對應到新版，等用家更新後見到嘅大小唔變：
+        // 舊 l（大）→ 新 std、舊 xl（特大）→ 新 l、舊 std（1.0 倍，已刪除）→ 新 std
+        if (pd.v !== DISPLAY_VER){ fsId = ({ std: "std", l: "std", xl: "l" })[fsId]; displayMigrated = true; }
+        if (FS_LEVELS.includes(fsId)) displayPrefs.fs = fsId;
+        if (THEMES.includes(pd.theme)) displayPrefs.theme = pd.theme;
+      }
     }
   }catch(e){}
   // 舊版「輕鬆檢視」已經刪除，順手清走佢留低嘅偏好
   try{ localStorage.removeItem("multicitybus.easy"); }catch(e){}
   function saveDisplay(){
-    try{ localStorage.setItem(DISPLAY_KEY, JSON.stringify(displayPrefs)); }catch(e){}
+    try{ localStorage.setItem(DISPLAY_KEY, JSON.stringify({ v: DISPLAY_VER, fs: displayPrefs.fs, theme: displayPrefs.theme })); }catch(e){}
   }
   function applyDisplay(){
     const root = document.documentElement;
@@ -821,6 +834,7 @@
     else return;
     saveDisplay(); applyDisplay();
   });
+  if (displayMigrated) saveDisplay();      // 舊版偏好對應完就存返新格式，之後唔使再對應
   applyDisplay();
 
   let focusWatches = null;
