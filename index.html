@@ -535,9 +535,9 @@
       </div>
       <div class="header-actions">
         <button class="icon-btn" id="speakAllBtn" title="廣東話播報到站時間" aria-label="播報">🗣️</button>
-        <button class="icon-btn" id="backToAllBtn" title="返回全部路線" style="display:none;">☰</button>
+        <button class="icon-btn" id="routesBtn" title="路線" aria-label="路線">☰</button>
         <button class="icon-btn" id="refreshBtn" title="立即刷新">⟳</button>
-        <button class="icon-btn" id="manageBtn" title="管理追蹤">⚙</button>
+        <button class="icon-btn" id="settingsBtn" title="設定" aria-label="設定">⚙</button>
       </div>
     </header>
     <main>
@@ -554,14 +554,31 @@
   <!-- ===================== 管理 / 新增 流程 ===================== -->
   <div id="flow-screen">
     <header>
-      <div class="brand"><h1 id="flowHeaderTitle">管理追蹤</h1></div>
+      <div class="brand"><h1 id="flowHeaderTitle">路線</h1></div>
       <div class="header-actions">
         <button class="icon-btn" id="closeFlowBtn" title="返回">✕</button>
       </div>
     </header>
 
-    <!-- 管理清單 -->
-    <div class="flow-step active" id="step-manage">
+    <!-- 路線頁（☰）：全部路線總覽入口、🔗 獨立頁面、合併、新增、刪除 -->
+    <div class="flow-step active" id="step-routes">
+      <button class="btn btn-ghost" id="allViewBtn">📋 全部路線總覽</button>
+      <p class="flow-sub">撳路線右邊嘅 🔗 會打開嗰條路線嘅獨立頁面；撳「揀幾條合併成一頁」可以自訂一個頁面包含你想要嘅幾條路線。</p>
+      <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
+      <div class="select-bar" id="selectBar">
+        <span class="sb-count" id="selectCount">已揀 0 條</span>
+        <div class="sb-actions">
+          <button class="sb-cancel" id="selectCancelBtn">取消</button>
+          <button class="sb-link" id="selectLinkBtn" disabled>打開呢組頁面</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="selectModeBtn">☑️ 揀幾條合併成一頁</button>
+      <div class="stop-list" id="manageList"></div>
+      <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
+    </div>
+
+    <!-- 設定頁（⚙）：同路線清單無關嘅設定 -->
+    <div class="flow-step" id="step-settings">
       <!-- 顯示設定：字體大小／配色（即時生效，記住你嘅選擇） -->
       <div class="display-card" id="displayCard">
         <div class="dc-title">顯示設定</div>
@@ -577,19 +594,7 @@
           <button class="seg-btn" data-pick-theme="dark" role="radio" aria-checked="true">🌙 晚上</button>
         </div>
       </div>
-      <p class="flow-sub">撳路線右邊嘅 🔗 會打開嗰條路線嘅獨立頁面；撳「揀幾條合併成一頁」可以自訂一個頁面包含你想要嘅幾條路線。</p>
       <p class="flow-sub" id="configHint" style="display:none;font-size:calc(14.5px * var(--fs));">要攞 config_bus.txt，撳下面「產生 config_bus.txt」，剔選路線後一次過砌好。</p>
-      <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
-      <div class="select-bar" id="selectBar">
-        <span class="sb-count" id="selectCount">已揀 0 條</span>
-        <div class="sb-actions">
-          <button class="sb-cancel" id="selectCancelBtn">取消</button>
-          <button class="sb-link" id="selectLinkBtn" disabled>打開呢組頁面</button>
-        </div>
-      </div>
-      <button class="btn btn-ghost" id="selectModeBtn">☑️ 揀幾條合併成一頁</button>
-      <div class="stop-list" id="manageList"></div>
-      <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
       <button class="btn btn-ghost" id="configFileBtn" style="display:none;">📄 產生 config_bus.txt（可揀路線）</button>
       <button class="btn btn-ghost" id="homeClipsBtn" style="display:none;">📲 一次過加到主畫面（用捷徑）</button>
       <details id="voiceDetails">
@@ -1318,7 +1323,7 @@
     "# 5. 「#」必須是該行的第一個字元，前面不可有空格",
     "# 6. 選單順序與檔案中的行順序相同（網頁產生時已排好：倫敦在前、香港在後，各組按路線號碼由小到大）；只有一條路線時不會彈出選單",
     "# 7. 每條網址只放一條路線，並須同時有去程站與回程站",
-    "# 8. 本檔可在網頁「管理追蹤」按 📄 自動產生",
+    "# 8. 本檔可在網頁「設定」按 📄 自動產生",
     "# 9. 名稱最前面的 🇬🇧（倫敦）、🇭🇰（香港）旗幟由網頁自動加上；名稱沒有旗幟時，腳本會按城市自動補上",
     "# 10. 檔案請使用 UTF-8 編碼",
     "# ============================================================="
@@ -1588,7 +1593,7 @@
   els.configCloseBtn.addEventListener("click", closeConfigOverlay);
   els.configCloseBtn2.addEventListener("click", closeConfigOverlay);
 
-  // ----- 播報語音設定（管理畫面）-----
+  // ----- 播報語音設定（設定頁）-----
   function populateVoiceSelect(){
     if (!SPEECH_OK){
       els.voiceDetails.style.display = "none";
@@ -1760,22 +1765,35 @@
   }
 
   els.closeFlowBtn.addEventListener("click", () => { showMain(); });
-  els.manageBtn.addEventListener("click", () => openManage());
+  els.settingsBtn.addEventListener("click", () => openSettings());
   els.refreshBtn.addEventListener("click", refreshData);
-  els.backToAllBtn.addEventListener("click", () => goToFullList());
+  els.routesBtn.addEventListener("click", () => openRoutes());
+  els.allViewBtn.addEventListener("click", () => {
+    // 單線／自訂頁面：返去全部路線總覽；本身已經喺總覽就直接閂返路線頁
+    if (location.search) goToFullList(); else showMain();
+  });
 
   let selectMode = false;
   let selectedIds = new Set();
 
-  function openManage(){
-    els.flowHeaderTitle.textContent = "管理追蹤";
-    els.appIdInput.value = settings.appId || "";
-    els.appKeyInput.value = settings.appKey || "";
+  function openRoutes(){
+    els.flowHeaderTitle.textContent = "路線";
     selectMode = false;
     selectedIds = new Set();
     renderManageList();
+    showFlowStep("step-routes");
+    showFlow();
+  }
+
+  function openSettings(){
+    els.flowHeaderTitle.textContent = "設定";
+    els.appIdInput.value = settings.appId || "";
+    els.appKeyInput.value = settings.appKey || "";
+    const canExport = IS_IOS && settings.watches.length > 0;
+    els.configFileBtn.style.display = canExport ? "block" : "none";
+    els.homeClipsBtn.style.display = canExport ? "block" : "none";
     populateVoiceSelect();
-    showFlowStep("step-manage");
+    showFlowStep("step-settings");
     showFlow();
   }
 
@@ -1784,6 +1802,7 @@
     const canBundle = settings.watches.length > 1;
     if (!canBundle && selectMode){ selectMode = false; selectedIds = new Set(); }
     els.selectBar.style.display = selectMode ? "flex" : "none";
+    els.allViewBtn.style.display = selectMode ? "none" : "block";
     els.selectModeBtn.style.display = (selectMode || !canBundle) ? "none" : "block";
     els.selectCount.textContent = "已揀 " + selectedIds.size + " 條";
     els.selectLinkBtn.disabled = selectedIds.size === 0;
@@ -1793,8 +1812,6 @@
     els.manageList.innerHTML = "";
     els.manageEmptyHint.style.display = settings.watches.length === 0 ? "block" : "none";
     updateSelectBar();
-    els.configFileBtn.style.display = (IS_IOS && settings.watches.length > 0) ? "block" : "none";
-    els.homeClipsBtn.style.display = (IS_IOS && settings.watches.length > 0) ? "block" : "none";
     settings.watches.forEach((w, idx) => {
       const div = document.createElement("div");
       div.className = "watch-item" + (selectMode && selectedIds.has(w.id) ? " selected" : "");
@@ -1980,7 +1997,7 @@
     };
     settings.watches.push(watch);
     saveSettings();   // 儲存失敗會自動提示，但今次仍然顯示喺目前頁面
-    openManage();
+    openRoutes();
     refreshData();
   }
 
@@ -2021,7 +2038,6 @@
       els.mainTitle.textContent = routeLabel;
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
-      els.backToAllBtn.style.display = "flex";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = focusWatches.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立頁面，淨係顯示呢條路線"
@@ -2034,13 +2050,12 @@
       const found = settings.watches.filter(w => focusWatchIds.includes(w.id));
       if (found.length === 0){
         els.mainTitle.textContent = "巴士";
-        els.backToAllBtn.style.display = "flex";
         els.filterHint.style.display = "none";
         els.watchCountLabel.textContent = "";
         els.groupList.innerHTML =
           '<div class="empty-state">' +
             '<div class="big">搵唔到呢個獨立頁面追蹤嘅路線</div>' +
-            '<div class="small">可能已經俾你刪除咗。撳左上角 ☰ 返去全部路線嘅清單。</div>' +
+            '<div class="small">可能已經俾你刪除咗。撳上面 ☰ 再揀「全部路線總覽」。</div>' +
           '</div>';
         return;
       }
@@ -2049,14 +2064,12 @@
       els.mainTitle.textContent = routeLabel;
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
-      els.backToAllBtn.style.display = "flex";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = found.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立頁面，淨係顯示呢條路線"
         : "🔗 呢個係自訂頁面，淨係顯示呢 " + found.length + " 條路線：" + routeLabel;
     } else {
       els.mainTitle.textContent = "巴士";
-      els.backToAllBtn.style.display = "none";
       if (dataParamInvalid){
         els.filterHint.style.display = "block";
         els.filterHint.textContent = "⚠️ 呢個頁面連結嘅資料有問題或者已損毀，所以顯示返全部追蹤嘅路線。";
@@ -2073,7 +2086,7 @@
       els.groupList.innerHTML =
         '<div class="empty-state">' +
           '<div class="big">仲未追蹤任何路線</div>' +
-          '<div class="small">撳右上角 ⚙ 設定，加返你想追蹤嘅香港或倫敦巴士路線，會自動同時追蹤去程同返程。</div>' +
+          '<div class="small">撳上面 ☰ 打開路線頁，加返你想追蹤嘅香港或倫敦巴士路線，會自動同時追蹤去程同返程。</div>' +
         '</div>';
       els.watchCountLabel.textContent = "";
       return;
