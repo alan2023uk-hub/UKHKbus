@@ -578,8 +578,8 @@
           <button class="seg-btn" data-pick-theme="dark" role="radio" aria-checked="true">🌙 晚上</button>
         </div>
       </div>
-      <p class="flow-sub">撳路線右邊嘅 🔗 可以攞到嗰條路線專屬嘅網址；撳「揀幾條砌埋一個捷徑」可以自訂一個捷徑包含你想要嘅幾條路線。跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</p>
-      <p class="flow-sub" style="font-size:calc(14.5px * var(--fs));">要攞 config_bus.txt，撳下面「產生 config_bus.txt」，剔選路線後一次過砌好。</p>
+      <p class="flow-sub">撳路線右邊嘅 🔗 可以攞到嗰條路線專屬嘅網址；撳「揀幾條砌埋一個捷徑」可以自訂一個捷徑包含你想要嘅幾條路線。<span id="homeScreenHint">跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</span></p>
+      <p class="flow-sub" id="configHint" style="font-size:calc(14.5px * var(--fs));">要攞 config_bus.txt，撳下面「產生 config_bus.txt」，剔選路線後一次過砌好。</p>
       <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
       <div class="select-bar" id="selectBar">
         <span class="sb-count" id="selectCount">已揀 0 條</span>
@@ -720,6 +720,38 @@
 
   const els = {};
   document.querySelectorAll("[id]").forEach(n => { els[n.id] = n; });
+
+  // ===================== 平台判斷 =====================
+  // iPhone／iPad 專用功能（交畀「捷徑」朗讀、Scriptable 用嘅 config_bus.txt）淨係喺 iOS／iPadOS 顯示，
+  // 其他裝置（Android、電腦）唔會見到令人摸不著頭腦嘅掣同提示。
+  // iPadOS 預設用「電腦版」User-Agent，所以要靠觸控點數同 iPhone／iPad 字樣一齊判斷。
+  const UA = navigator.userAgent || "";
+  const IS_IOS = /iPhone|iPad|iPod/.test(UA) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const IS_ANDROID = /Android/i.test(UA);
+
+  // 安裝中文語音嘅說明：按裝置顯示；short = true 係畀 toast 用嘅短版
+  function voiceInstallHint(short){
+    if (IS_IOS) return short
+      ? "iPhone／iPad 可以喺設定嘅「朗讀內容」下載粵語、台灣或普通話語音"
+      : "iPhone／iPad 可以去「設定」→「輔助使用」→「朗讀內容」→「聲音」→「中文」下載粵語、台灣或普通話（大致路徑，視乎 iOS 版本）。";
+    if (IS_ANDROID) return short
+      ? "請喺手機設定搜尋「文字轉語音」，安裝中文語音"
+      : "請去手機「設定」搜尋「文字轉語音」，下載粵語或國語語音（路徑視乎手機品牌）。";
+    return short
+      ? "請喺系統設定安裝中文語音"
+      : "請去電腦嘅系統設定安裝中文語音（路徑視乎作業系統）。";
+  }
+  // 「加入主畫面」說明：iPhone／iPad 用 Safari；Android 用瀏覽器選單；電腦就加書籤
+  function homeScreenHintText(){
+    if (IS_IOS) return "跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。";
+    if (IS_ANDROID) return "跟住用瀏覽器選單（⋮）→「加到主畫面」，就會建立返嗰個獨立捷徑。";
+    return "跟住用瀏覽器加書籤（Windows 按 Ctrl+D，Mac 按 ⌘+D），就可以儲存返嗰個獨立網址。";
+  }
+  function applyPlatformUi(){
+    els.homeScreenHint.textContent = homeScreenHintText();
+    els.configHint.style.display = IS_IOS ? "" : "none";   // config_bus.txt 只係畀 iPhone／iPad 上嘅 Scriptable 腳本用
+  }
 
   let settings = loadSettings();
   let refreshTimer = null;
@@ -1241,7 +1273,7 @@
       setSpeakingUi(false);
       const voices = speechSynthesis.getVoices() || [];
       if (voices.length > 0 && !findVoice("zh")){
-        showToast("未搵到中文語音。iPhone 可以喺設定嘅「朗讀內容」下載粵語、台灣或普通話語音");
+        showToast("未搵到中文語音。" + voiceInstallHint(true));
       }
     };
     speechSynthesis.cancel();   // 清走解鎖用嗰句
@@ -1507,7 +1539,7 @@
     if (els.voiceSelect.value !== (settings.voiceUri || "")) els.voiceSelect.value = "";
     els.voiceInfo.textContent = voices.length > 0
       ? "每個地區各列一個語音（只會列出你部機已安裝嘅）。揀粵語會用廣東話口語讀稿，揀台灣／普通話會用國語讀稿。"
-      : "未搵到中文語音。iPhone 可以去「設定」→「輔助使用」→「朗讀內容」→「聲音」→「中文」下載粵語、台灣或普通話（大致路徑，視乎 iOS 版本）。";
+      : "未搵到中文語音。" + voiceInstallHint(false);
     const rate = effectiveRate();
     els.voiceRate.value = String(rate);
     els.voiceRateLabel.textContent = rate.toFixed(2);
@@ -1669,7 +1701,7 @@
     els.manageList.innerHTML = "";
     els.manageEmptyHint.style.display = settings.watches.length === 0 ? "block" : "none";
     updateSelectBar();
-    els.configFileBtn.style.display = settings.watches.length > 0 ? "block" : "none";
+    els.configFileBtn.style.display = (IS_IOS && settings.watches.length > 0) ? "block" : "none";
     settings.watches.forEach((w, idx) => {
       const div = document.createElement("div");
       div.className = "watch-item" + (selectMode && selectedIds.has(w.id) ? " selected" : "");
@@ -1898,7 +1930,7 @@
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
-      els.copySpeakUrlBtn.style.display = "block";
+      els.copySpeakUrlBtn.style.display = IS_IOS ? "block" : "none";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = focusWatches.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
@@ -1927,7 +1959,7 @@
       document.title = routeLabel + " 巴士";
       els.appTitleMeta.setAttribute("content", routeLabel + " 巴士");
       els.backToAllBtn.style.display = "flex";
-      els.copySpeakUrlBtn.style.display = "block";
+      els.copySpeakUrlBtn.style.display = IS_IOS ? "block" : "none";
       els.filterHint.style.display = "block";
       els.filterHint.textContent = found.length === 1
         ? "🔗 呢個係「" + routeLabel + "」嘅獨立捷徑，淨係顯示呢條路線"
@@ -2064,8 +2096,9 @@
   function startApp(){
     showMain();
     refreshData();
-    if (sayName) runSayMode();
-    else if (speakParam) showSpeakOverlay();
+    applyPlatformUi();
+    if (sayName && IS_IOS) runSayMode();
+    else if (sayName || speakParam) showSpeakOverlay();   // 非 iPhone／iPad 開到 ?say= 連結：「捷徑」用唔到，改為「撳一下播報」用本機語音
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(refreshData, REFRESH_MS);
     document.addEventListener("visibilitychange", () => {
