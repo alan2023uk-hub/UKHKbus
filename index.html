@@ -37,6 +37,13 @@
     --text:#F2F3F4;
     --text-dim:#9AA0A6;
     --text-faint:#5B6066;
+    /* 顯示設定（字體大小／配色）用嘅變數。深色（晚上）嘅值就係原本嘅顏色，一隻色都冇改 */
+    --amber-ink:#FFB300;   /* 「文字」用嘅琥珀色；白天配色會轉深，否則白底睇唔清 */
+    --err:#ff8f8a;         /* 錯誤／刪除字樣 */
+    --overlay:rgba(11,13,15,0.97);
+    --scan:rgba(255,255,255,0.012);
+    --glow:0 0 8px rgba(255,179,0,0.35);
+    --fs:1;                /* 字體倍數：標準 1／大 1.25／特大 1.5（見下面 data-fs） */
     --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-led: ui-monospace, "SF Mono", "Roboto Mono", "Cascadia Mono", Consolas, monospace;
   }
@@ -68,7 +75,7 @@
     padding:calc(env(safe-area-inset-top) + 18px) 18px 14px 18px;
   }
   .brand{display:flex;align-items:center;gap:10px;min-width:0;}
-  .brand h1{font-size:24px;margin:0;font-weight:700;letter-spacing:0.2px;
+  .brand h1{font-size:calc(24px * var(--fs));margin:0;font-weight:700;letter-spacing:0.2px;
     min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .pulse{
     width:8px;height:8px;border-radius:50%;background:var(--amber);
@@ -84,10 +91,10 @@
     background:var(--panel);
     border:1px solid var(--line);
     color:var(--text-dim);
-    width:40px;height:40px;
+    width:calc(40px * var(--fs));height:calc(40px * var(--fs));
     border-radius:11px;
     display:flex;align-items:center;justify-content:center;
-    font-size:18px;
+    font-size:calc(18px * var(--fs));
     cursor:pointer;
   }
   .icon-btn:active{background:var(--panel-2);}
@@ -97,14 +104,14 @@
 
   .updated-row{
     display:flex;justify-content:space-between;align-items:center;
-    color:var(--text-faint);font-size:15px;margin-bottom:12px;padding:0 2px;
+    color:var(--text-faint);font-size:calc(15px * var(--fs));margin-bottom:12px;padding:0 2px;
   }
 
   .filter-hint{
     background:rgba(255,179,0,0.08);
     border:1px solid rgba(255,179,0,0.3);
-    color:var(--amber);
-    font-size:13.5px;line-height:1.5;
+    color:var(--amber-ink);
+    font-size:calc(13.5px * var(--fs));line-height:1.5;
     padding:11px 13px;border-radius:12px;
     margin-bottom:12px;
   }
@@ -118,7 +125,7 @@
   }
   .group-card{
     background:
-      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px),
+      repeating-linear-gradient(0deg, var(--scan) 0px, var(--scan) 1px, transparent 1px, transparent 3px),
       var(--panel);
     border:1px solid var(--line);
     border-radius:16px;
@@ -130,18 +137,18 @@
   }
   .group-head .arrow{
     flex-shrink:0;
-    width:26px;height:26px;border-radius:8px;
+    width:calc(26px * var(--fs));height:calc(26px * var(--fs));border-radius:8px;
     display:flex;align-items:center;justify-content:center;
-    font-size:13px;
+    font-size:calc(13px * var(--fs));
   }
   .group-head .stop-name{
     flex:1;min-width:0;
-    color:var(--text);font-weight:700;font-size:17px;
+    color:var(--text);font-weight:700;font-size:calc(17px * var(--fs));
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .group-head .city-tag{
     flex-shrink:0;
-    font-size:11.5px;color:var(--text-faint);
+    font-size:calc(11.5px * var(--fs));color:var(--text-faint);
     border:1px solid var(--line);
     padding:3px 8px;border-radius:20px;
   }
@@ -155,17 +162,17 @@
 
   .route-badge{
     flex-shrink:0;
-    min-width:46px;
+    min-width:calc(46px * var(--fs));
     text-align:center;
     padding:5px 8px;
     border-radius:8px;
     font-weight:800;
-    font-size:15px;
+    font-size:calc(15px * var(--fs));
     color:#0B0D0F;
   }
   .g-row .dest{
     flex:1;min-width:0;
-    color:var(--text-dim);font-size:16px;font-weight:500;
+    color:var(--text-dim);font-size:calc(16px * var(--fs));font-weight:500;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .g-row.top .dest{color:var(--text);font-weight:600;}
@@ -174,33 +181,33 @@
     flex-shrink:0;
     font-family:var(--font-led);
     text-align:right;
-    color:var(--amber);
-    text-shadow:0 0 8px rgba(255,179,0,0.35);
+    color:var(--amber-ink);
+    text-shadow:var(--glow);
     letter-spacing:0.5px;
-    font-size:16px;
+    font-size:calc(16px * var(--fs));
     font-weight:600;
   }
-  .g-row.top .eta{font-size:21px;}
-  .eta small{font-family:var(--font-body);color:var(--text-dim);font-weight:500;font-size:13px;margin-left:2px;}
+  .g-row.top .eta{font-size:calc(21px * var(--fs));}
+  .eta small{font-family:var(--font-body);color:var(--text-dim);font-weight:500;font-size:calc(13px * var(--fs));margin-left:2px;}
 
   .g-empty{
-    padding:14px 0;color:var(--text-faint);font-size:14.5px;text-align:center;
+    padding:14px 0;color:var(--text-faint);font-size:calc(14.5px * var(--fs));text-align:center;
   }
-  .g-empty.err{color:#ff8f8a;}
+  .g-empty.err{color:var(--err);}
 
   .empty-state{
     flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:14px;color:var(--text-dim);text-align:center;padding:0 24px;
   }
-  .empty-state .big{font-size:17px;color:var(--text);font-weight:600;}
-  .empty-state .small{font-size:14.5px;line-height:1.5;}
+  .empty-state .big{font-size:calc(17px * var(--fs));color:var(--text);font-weight:600;}
+  .empty-state .small{font-size:calc(14.5px * var(--fs));line-height:1.5;}
 
   .btn{
     width:100%;
     padding:16px;
     border-radius:13px;
     border:none;
-    font-size:18px;
+    font-size:calc(18px * var(--fs));
     font-weight:700;
     cursor:pointer;
     font-family:var(--font-body);
@@ -209,7 +216,7 @@
   .btn-primary:active{background:#e0a000;}
   .btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--line);}
   .btn-ghost:active{background:var(--panel-2);}
-  .btn-danger{background:transparent;color:#ff8f8a;border:1px solid rgba(220,36,31,0.4);}
+  .btn-danger{background:transparent;color:var(--err);border:1px solid rgba(220,36,31,0.4);}
 
   /* ===== 城市選擇卡 ===== */
   .city-choice{
@@ -222,19 +229,19 @@
   }
   .city-card:active{background:var(--panel-2);}
   .city-icon{
-    width:44px;height:44px;border-radius:12px;
+    width:calc(44px * var(--fs));height:calc(44px * var(--fs));border-radius:12px;
     display:flex;align-items:center;justify-content:center;
-    font-size:20px;font-weight:800;color:#0B0D0F;
+    font-size:calc(20px * var(--fs));font-weight:800;color:#0B0D0F;
   }
-  .city-card .city-name{font-size:18px;font-weight:700;}
-  .city-card .city-sub{font-size:13.5px;color:var(--text-dim);margin-top:2px;}
+  .city-card .city-name{font-size:calc(18px * var(--fs));font-weight:700;}
+  .city-card .city-sub{font-size:calc(13.5px * var(--fs));color:var(--text-dim);margin-top:2px;}
 
   /* ===== 設定/管理畫面（共用容器）===== */
   #flow-screen{display:none;flex:1;flex-direction:column;padding:0 18px 24px 18px;min-height:0;}
   .flow-step{display:none;flex-direction:column;gap:14px;padding-top:8px;flex:1;min-height:0;}
   .flow-step.active{display:flex;}
-  .flow-title{font-size:26px;font-weight:800;margin:6px 0 0 0;}
-  .flow-sub{color:var(--text-dim);font-size:17px;line-height:1.5;margin:0;}
+  .flow-title{font-size:calc(26px * var(--fs));font-weight:800;margin:6px 0 0 0;}
+  .flow-sub{color:var(--text-dim);font-size:calc(17px * var(--fs));line-height:1.5;margin:0;}
 
   input[type="text"]{
     width:100%;
@@ -243,7 +250,7 @@
     color:var(--text);
     padding:15px;
     border-radius:12px;
-    font-size:18px;
+    font-size:calc(18px * var(--fs));
     font-family:var(--font-body);
   }
   input[type="text"]:focus{outline:1px solid var(--amber);}
@@ -254,15 +261,15 @@
     color:var(--text);
     padding:13px;
     border-radius:12px;
-    font-size:16px;
+    font-size:calc(16px * var(--fs));
     font-family:var(--font-body);
   }
   input[type="range"]{width:100%;accent-color:var(--amber);}
-  .voice-note{color:var(--text-dim);font-size:13.5px;line-height:1.5;}
+  .voice-note{color:var(--text-dim);font-size:calc(13.5px * var(--fs));line-height:1.5;}
   .preset-row{display:flex;gap:8px;}
-  .preset-row .btn{padding:11px 6px;font-size:15px;}
+  .preset-row .btn{padding:11px 6px;font-size:calc(15px * var(--fs));}
   details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
-  details summary{color:var(--text-dim);font-size:16.5px;cursor:pointer;}
+  details summary{color:var(--text-dim);font-size:calc(16.5px * var(--fs));cursor:pointer;}
   details .adv-fields{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
 
   .stop-list{
@@ -278,10 +285,10 @@
     padding:16px 15px;
     display:flex;align-items:center;gap:10px;
     cursor:pointer;
-    font-size:19px;
+    font-size:calc(19px * var(--fs));
   }
   .stop-item:active{background:var(--panel-2);border-color:var(--amber);}
-  .stop-item .seq{color:var(--text-faint);font-family:var(--font-led);font-size:15px;min-width:26px;}
+  .stop-item .seq{color:var(--text-faint);font-family:var(--font-led);font-size:calc(15px * var(--fs));min-width:calc(26px * var(--fs));}
 
   .watch-item{
     background:var(--panel);border:1px solid var(--line);border-radius:12px;
@@ -289,33 +296,33 @@
   }
   .watch-item.selected{border-color:var(--amber);}
   .watch-item .wi-check{
-    flex-shrink:0;width:24px;height:24px;border-radius:7px;
+    flex-shrink:0;width:calc(24px * var(--fs));height:calc(24px * var(--fs));border-radius:7px;
     border:1.5px solid var(--line);
     display:flex;align-items:center;justify-content:center;
-    font-size:14px;color:var(--amber);cursor:pointer;
+    font-size:calc(14px * var(--fs));color:var(--amber-ink);cursor:pointer;
   }
   .watch-item.selected .wi-check{background:rgba(255,179,0,0.15);border-color:var(--amber);}
   .watch-item .wi-main{flex:1;min-width:0;}
-  .watch-item .wi-route{font-size:16.5px;font-weight:700;}
-  .watch-item .wi-sub{font-size:13.5px;color:var(--text-dim);margin-top:2px;
+  .watch-item .wi-route{font-size:calc(16.5px * var(--fs));font-weight:700;}
+  .watch-item .wi-sub{font-size:calc(13.5px * var(--fs));color:var(--text-dim);margin-top:2px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .watch-item .wi-del{
-    flex-shrink:0;width:34px;height:34px;border-radius:10px;
-    background:rgba(220,36,31,0.12);color:#ff8f8a;
-    display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;
+    flex-shrink:0;width:calc(34px * var(--fs));height:calc(34px * var(--fs));border-radius:10px;
+    background:rgba(220,36,31,0.12);color:var(--err);
+    display:flex;align-items:center;justify-content:center;font-size:calc(16px * var(--fs));cursor:pointer;
   }
   .watch-item .wi-link{
-    flex-shrink:0;width:34px;height:34px;border-radius:10px;
-    background:rgba(255,179,0,0.12);color:var(--amber);
-    display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;
+    flex-shrink:0;width:calc(34px * var(--fs));height:calc(34px * var(--fs));border-radius:10px;
+    background:rgba(255,179,0,0.12);color:var(--amber-ink);
+    display:flex;align-items:center;justify-content:center;font-size:calc(15px * var(--fs));cursor:pointer;
   }
   .watch-item .wi-cfg{
-    flex-shrink:0;width:34px;height:34px;border-radius:10px;
+    flex-shrink:0;width:calc(34px * var(--fs));height:calc(34px * var(--fs));border-radius:10px;
     background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
-    display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:calc(15px * var(--fs));cursor:pointer;
   }
 
-  .spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px 0;color:var(--text-dim);font-size:17px;flex:1;}
+  .spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px 0;color:var(--text-dim);font-size:calc(17px * var(--fs));flex:1;}
   .spinner{
     width:26px;height:26px;border-radius:50%;
     border:3px solid var(--line);border-top-color:var(--amber);
@@ -326,13 +333,13 @@
   .error-box{
     background:rgba(220,36,31,0.1);
     border:1px solid rgba(220,36,31,0.4);
-    color:#ff8f8a;
-    padding:14px;border-radius:12px;font-size:16.5px;line-height:1.5;
+    color:var(--err);
+    padding:14px;border-radius:12px;font-size:calc(16.5px * var(--fs));line-height:1.5;
   }
 
   footer{
     padding:10px 18px calc(14px + env(safe-area-inset-bottom)) 18px;
-    color:var(--text-faint);font-size:13.5px;text-align:center;
+    color:var(--text-faint);font-size:calc(13.5px * var(--fs));text-align:center;
   }
 
   .select-bar{
@@ -341,10 +348,10 @@
     background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
     padding:11px 13px;margin-bottom:2px;
   }
-  .select-bar .sb-count{font-size:14.5px;color:var(--text-dim);}
+  .select-bar .sb-count{font-size:calc(14.5px * var(--fs));color:var(--text-dim);}
   .select-bar .sb-actions{display:flex;gap:8px;}
   .select-bar button{
-    padding:9px 13px;border-radius:9px;border:none;font-size:14.5px;font-weight:700;
+    padding:9px 13px;border-radius:9px;border:none;font-size:calc(14.5px * var(--fs));font-weight:700;
     font-family:var(--font-body);cursor:pointer;
   }
   .select-bar .sb-cancel{background:transparent;color:var(--text-dim);border:1px solid var(--line);}
@@ -352,62 +359,62 @@
   .select-bar .sb-link:disabled{opacity:0.4;}
 
   /* ===== 廣東話播報 ===== */
-  .icon-btn.speaking{color:var(--amber);border-color:var(--amber);}
+  .icon-btn.speaking{color:var(--amber-ink);border-color:var(--amber);}
   .speak-btn{
-    flex-shrink:0;width:32px;height:26px;border-radius:8px;
-    border:1px solid var(--line);background:var(--panel-2);color:var(--amber);
-    font-size:14px;line-height:1;cursor:pointer;padding:0;
+    flex-shrink:0;width:calc(32px * var(--fs));height:calc(26px * var(--fs));border-radius:8px;
+    border:1px solid var(--line);background:var(--panel-2);color:var(--amber-ink);
+    font-size:calc(14px * var(--fs));line-height:1;cursor:pointer;padding:0;
   }
   .speak-btn:active{background:var(--line);}
   .speak-btn.speaking{border-color:var(--amber);}
   #speakOverlay{
     position:fixed;inset:0;z-index:50;display:none;
     flex-direction:column;align-items:center;justify-content:center;gap:18px;
-    background:rgba(11,13,15,0.97);padding:24px;text-align:center;
+    background:var(--overlay);padding:24px;text-align:center;
   }
-  #speakOverlay .so-title{font-size:26px;font-weight:800;}
+  #speakOverlay .so-title{font-size:calc(26px * var(--fs));font-weight:800;}
   #speakOverlay .so-big{
     width:100%;max-width:340px;padding:28px 16px;border-radius:20px;border:none;
-    background:var(--amber);color:#0B0D0F;font-size:24px;font-weight:800;
+    background:var(--amber);color:#0B0D0F;font-size:calc(24px * var(--fs));font-weight:800;
     font-family:var(--font-body);cursor:pointer;
   }
   #speakOverlay .so-big:active{background:#e0a000;}
   #speakOverlay .so-close{
-    background:transparent;border:none;color:var(--text-dim);font-size:16px;
+    background:transparent;border:none;color:var(--text-dim);font-size:calc(16px * var(--fs));
     font-family:var(--font-body);cursor:pointer;padding:10px;
   }
   #sayOverlay{
     position:fixed;inset:0;z-index:50;display:none;
     flex-direction:column;align-items:center;justify-content:center;gap:14px;
-    background:rgba(11,13,15,0.97);padding:24px;text-align:center;
+    background:var(--overlay);padding:24px;text-align:center;
   }
-  #sayOverlay .so-title{font-size:24px;font-weight:800;}
+  #sayOverlay .so-title{font-size:calc(24px * var(--fs));font-weight:800;}
   #sayOverlay .so-big{
     width:100%;max-width:340px;padding:22px 16px;border-radius:20px;border:none;
-    background:var(--amber);color:#0B0D0F;font-size:21px;font-weight:800;
+    background:var(--amber);color:#0B0D0F;font-size:calc(21px * var(--fs));font-weight:800;
     font-family:var(--font-body);cursor:pointer;
   }
   #sayOverlay .so-big:active{background:#e0a000;}
-  #sayOverlay .btn{max-width:340px;padding:13px;font-size:16px;}
+  #sayOverlay .btn{max-width:340px;padding:13px;font-size:calc(16px * var(--fs));}
   #sayOverlay .so-close{
-    background:transparent;border:none;color:var(--text-dim);font-size:16px;
+    background:transparent;border:none;color:var(--text-dim);font-size:calc(16px * var(--fs));
     font-family:var(--font-body);cursor:pointer;padding:8px;
   }
   .say-text{
     width:100%;max-width:340px;max-height:28vh;overflow:auto;text-align:left;
     background:var(--panel);border:1px solid var(--line);border-radius:12px;
-    padding:12px;font-size:15px;line-height:1.6;color:var(--text);
+    padding:12px;font-size:calc(15px * var(--fs));line-height:1.6;color:var(--text);
   }
   /* ===== 產生 config_bus.txt ===== */
   #configOverlay{
     position:fixed;inset:0;z-index:50;display:none;
     flex-direction:column;align-items:center;justify-content:center;
-    background:rgba(11,13,15,0.97);padding:24px;text-align:center;
+    background:var(--overlay);padding:24px;text-align:center;
   }
   #configOverlay .cfg-panel{
     width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;
   }
-  #configOverlay .so-title{font-size:22px;font-weight:800;}
+  #configOverlay .so-title{font-size:calc(22px * var(--fs));font-weight:800;}
   #configOverlay .voice-note{max-width:440px;}
   #configPickList{
     width:100%;max-width:440px;max-height:44vh;overflow:auto;text-align:left;
@@ -415,183 +422,102 @@
   }
   .cfg-row{
     display:flex;align-items:center;gap:12px;padding:12px 14px;
-    border-bottom:1px solid var(--line);cursor:pointer;font-size:15px;line-height:1.4;
+    border-bottom:1px solid var(--line);cursor:pointer;font-size:calc(15px * var(--fs));line-height:1.4;
   }
   .cfg-row:last-child{border-bottom:none;}
-  .cfg-row input{width:22px;height:22px;flex-shrink:0;accent-color:var(--amber);}
+  .cfg-row input{width:calc(22px * var(--fs));height:calc(22px * var(--fs));flex-shrink:0;accent-color:var(--amber);}
   #configOverlay textarea{
     width:100%;max-width:440px;height:40vh;resize:none;
     background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;
-    padding:12px;font-size:16px;line-height:1.5;font-family:var(--font-led);
+    padding:12px;font-size:calc(16px * var(--fs));line-height:1.5;font-family:var(--font-led);
     white-space:pre;overflow:auto;text-align:left;
   }
-  #configOverlay .btn{max-width:340px;padding:13px;font-size:16px;}
+  #configOverlay .btn{max-width:340px;padding:13px;font-size:calc(16px * var(--fs));}
   #configOverlay .so-close{
-    background:transparent;border:none;color:var(--text-dim);font-size:16px;
+    background:transparent;border:none;color:var(--text-dim);font-size:calc(16px * var(--fs));
     font-family:var(--font-body);cursor:pointer;padding:8px;
   }
 
   /* =====================================================================
-     輕鬆檢視（大字、高對比；方便視力唔好嘅人）
-     只加「外觀」：全部規則都掛喺 body.easy 之下，唔開啟就完全冇影響，
-     亦唔改動任何查詢、播報、設定功能。顏色用黃／橙／米黃，避開白、紅、藍。
-     字體大小由 JS 設定 <html> 嘅 font-size，下面全部用 rem。
+     顯示設定：字體大小（標準／大／特大）＋ 配色（白天／晚上）
+     只係外觀：用 <html> 嘅 data-fs／data-theme 屬性切換，唔改動任何查詢、播報、設定功能。
+     標準字體 = 冇 data-fs；晚上配色 = 冇 data-theme（即係原本嘅套色，一點都冇改）。
+     字體大小：全部字體都係 calc(原本 px * var(--fs))，所以標準時同原本完全一樣。
      ===================================================================== */
-  .easy-bar{display:none;}
-  body.easy{
-    /* 配色沿用原版（--bg／--panel／--amber／--text 等一律唔改），
-       只係將分隔線略為提亮，等粗邊框喺深色底上睇得清楚 */
-    --line:#3A4148;
-    line-height:1.35;
-  }
-  body.easy.ez-light{
-    --bg:#FFF3C4;--panel:#FFE79A;--panel-2:#FFDB70;--line:#000000;
-    --amber:#FFB300;--text:#000000;--text-dim:#1B1500;--text-faint:#2B2200;
-  }
-  body.easy .pulse{display:none;}
+  :root[data-fs="l"]{--fs:1.25;}
+  :root[data-fs="xl"]{--fs:1.5;}
 
-  /* 標題同按鈕列 */
-  body.easy header{padding:calc(env(safe-area-inset-top) + .6rem) 1rem .5rem 1rem;flex-wrap:wrap;gap:.5rem;}
-  body.easy .brand h1{font-size:2rem;white-space:normal;overflow:visible;text-overflow:clip;}
-  body.easy .icon-btn{
-    width:3rem;height:3rem;border-radius:.8rem;font-size:1.45rem;flex-shrink:0;
-    border:2px solid var(--line);color:var(--text);
+  /* 白天配色（中性：白／淺灰底、近黑字）。琥珀色當文字用嗰度轉深，確保白底睇得清 */
+  :root[data-theme="light"]{
+    --bg:#F2F3F5;
+    --panel:#FFFFFF;
+    --panel-2:#E9ECEF;
+    --line:#D3D8DE;
+    --text:#14171A;
+    --text-dim:#4A5159;
+    --text-faint:#5F6770;
+    --amber-ink:#A85400;
+    --err:#B3261E;
+    --overlay:rgba(242,243,245,0.98);
+    --scan:transparent;
+    --glow:none;
   }
-  body.easy #main-screen .header-actions{width:100%;justify-content:space-between;gap:.5rem;flex-wrap:wrap;}
-  body.easy #main-screen .header-actions .icon-btn{flex:1 1 2.2rem;width:auto;min-width:0;}
-  body.easy .icon-btn.speaking{background:var(--amber);color:#000;border-color:#000;}
-  body.easy .easy-bar{display:flex;flex-wrap:wrap;gap:.4rem;padding:0 1rem .5rem 1rem;}
-  .ez-btn{
-    flex:1 1 auto;min-width:0;min-height:2.7rem;border-radius:.8rem;
-    border:2px solid var(--line);background:var(--panel-2);color:var(--text);
-    font-size:1.05rem;font-weight:800;font-family:var(--font-body);cursor:pointer;padding:0 .2rem;
-    white-space:nowrap;
-  }
-  .ez-btn:active{background:var(--amber);color:#000;}
-  .ez-btn:disabled{opacity:.35;}
 
-  /* 主畫面 */
-  body.easy main{padding:0 1rem 1rem 1rem;}
-  body.easy .updated-row{font-size:1.05rem;color:var(--text-dim);flex-wrap:wrap;gap:.1rem .8rem;margin-bottom:.6rem;}
-  /* 為咗畀到站時間佔最大位置：呢兩項只係輔助資訊／工具，輕鬆檢視入面收埋；撳「標準」就會照常出現 */
-  body.easy .filter-hint,
-  body.easy #copySpeakUrlBtn{display:none !important;}
-  body.easy .group-list{gap:1rem;}
-  body.easy .group-card{
-    background:var(--panel);border:3px solid var(--line);border-radius:1.1rem;
-    padding:.8rem 1rem .3rem 1rem;
-  }
-  body.easy .group-head{flex-wrap:wrap;gap:.4rem .6rem;margin-bottom:.4rem;}
-  /* 去程／回程用文字標示（唔再淨靠箭嘴圖示） */
-  body.easy .group-head .arrow{
-    order:1;width:auto;height:auto;padding:.3rem .8rem;border-radius:.7rem;
-    font-size:0;color:var(--text);border:2px solid var(--line);
-  }
-  body.easy .group-card[data-city="london"] .group-head .arrow{border-color:var(--ldn);}
-  body.easy .group-card[data-city="hk"] .group-head .arrow{border-color:var(--hk);}
-  body.easy .group-head .arrow::after{font-size:1.25rem;font-weight:800;line-height:1.2;}
-  body.easy .group-card[data-leg="outbound"] .group-head .arrow::after{content:"去程 →";}
-  body.easy .group-card[data-leg="inbound"] .group-head .arrow::after{content:"回程 ←";}
-  body.easy .group-card[data-city="london"][data-leg="outbound"] .group-head .arrow::after{content:"🇬🇧 去程 →";}
-  body.easy .group-card[data-city="london"][data-leg="inbound"] .group-head .arrow::after{content:"🇬🇧 回程 ←";}
-  body.easy .group-card[data-city="hk"][data-leg="outbound"] .group-head .arrow::after{content:"🇭🇰 去程 →";}
-  body.easy .group-card[data-city="hk"][data-leg="inbound"] .group-head .arrow::after{content:"🇭🇰 回程 ←";}
-  body.easy .group-head .city-tag{display:none;}
-  body.easy .speak-btn{
-    order:3;margin-left:auto;width:3.2rem;height:2.6rem;font-size:1.3rem;
-    border:2px solid var(--line);color:var(--amber);
-  }
-  body.easy .group-head .stop-name{
-    order:4;flex:1 0 100%;font-size:1.5rem;line-height:1.2;
-    white-space:normal;overflow:visible;text-overflow:clip;
-  }
-  /* 每班車：第一行 路線＋時間，第二行 目的地 */
-  body.easy .g-row{
-    display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
-    gap:.1rem .8rem;padding:.6rem 0;border-top:2px solid var(--line);
-  }
-  body.easy .g-row:first-of-type{border-top:none;}
-  body.easy .route-badge{
-    order:1;font-size:1.5rem;min-width:4rem;padding:.25rem .7rem;border-radius:.6rem;
-  }
-  body.easy .eta{
-    order:2;margin-left:auto;white-space:nowrap;font-size:2rem;font-weight:800;
-    letter-spacing:0;color:var(--amber);
-  }
-  body.easy .g-row.top .eta{font-size:3rem;}
-  body.easy.ez-light .eta{color:#000;text-shadow:none;}
-  body.easy.ez-light .group-head .arrow{background:var(--amber) !important;color:#000;border-color:#000 !important;}
-  body.easy.ez-light .route-badge{border:2px solid #000;}
-  body.easy .eta small{font-size:1.15rem;color:var(--text);margin-left:.25rem;font-weight:700;}
-  body.easy .g-row .dest{
-    order:3;flex:1 0 100%;font-size:1.2rem;color:var(--text);font-weight:600;
-    white-space:normal;overflow:visible;text-overflow:clip;
-  }
-  body.easy .g-empty{font-size:1.2rem;color:var(--text);padding:1rem 0;}
-  body.easy .g-empty.err{font-weight:700;}
-  body.easy.ez-light .g-empty.err{color:#6B3300;}
-  body.easy .empty-state .big{font-size:1.5rem;}
-  body.easy .empty-state .small{font-size:1.15rem;}
-  body.easy footer{font-size:1rem;color:var(--text-dim);}
+  /* 字體放大（大／特大）時嘅排版：長字（站名、目的地）改為折行顯示，唔再被「…」截走 */
+  :root[data-fs] header{flex-wrap:wrap;gap:8px;}
+  :root[data-fs] .header-actions{margin-left:auto;}
+  :root[data-fs] .brand h1{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;}
+  :root[data-fs] .updated-row{flex-wrap:wrap;gap:4px 14px;}
+  :root[data-fs] .group-head{flex-wrap:wrap;row-gap:8px;}
+  :root[data-fs] .group-head .speak-btn{order:3;margin-left:auto;}
+  :root[data-fs] .group-head .stop-name{order:4;flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;}
+  :root[data-fs] .g-row{flex-wrap:wrap;row-gap:2px;}
+  :root[data-fs] .g-row .route-badge{order:1;}
+  :root[data-fs] .g-row .eta{order:2;margin-left:auto;white-space:nowrap;}
+  :root[data-fs] .g-row .dest{order:3;flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;}
+  :root[data-fs] .watch-item{flex-wrap:wrap;}
+  :root[data-fs] .watch-item .wi-main{flex:1 0 100%;}
+  :root[data-fs] .watch-item .wi-check + .wi-main{flex:1 1 0;}   /* 揀選模式（冇掣）：剔選框同文字同一行 */
+  :root[data-fs] .watch-item .wi-cfg{margin-left:auto;}
+  :root[data-fs] .watch-item .wi-sub{white-space:normal;}
+  :root[data-fs] .select-bar{flex-wrap:wrap;}
 
-  /* 設定／管理畫面 */
-  body.easy #flow-screen{padding:0 1rem 1.5rem 1rem;}
-  body.easy .flow-title{font-size:2rem;}
-  body.easy .flow-sub{font-size:1.05rem !important;}
-  body.easy .btn{font-size:1.3rem;padding:1rem;min-height:3.6rem;}
-  body.easy .btn-ghost{color:var(--text);border:2px solid var(--line);}
-  body.easy input[type="text"]{font-size:1.3rem;border:2px solid var(--line);}
-  body.easy select{font-size:1.2rem;border:2px solid var(--line);}
-  body.easy .voice-note{font-size:1.1rem;color:var(--text-dim);}
-  body.easy details{border:2px solid var(--line);}
-  body.easy details summary{font-size:1.2rem;color:var(--text);}
-  body.easy .stop-item{font-size:1.4rem;border:2px solid var(--line);}
-  /* 路線列：文字佔成行，三個掣喺下面一行靠右，唔會逼窄文字 */
-  body.easy .watch-item{border:2px solid var(--line);padding:1rem;flex-wrap:wrap;}
-  body.easy .watch-item .wi-main{flex:1 0 100%;min-width:0;}
-  body.easy .watch-item .wi-check + .wi-main{flex:1 1 0;}   /* 揀選模式（冇掣）：剔選框同文字同一行 */
-  body.easy .watch-item .wi-cfg{margin-left:auto;}
-  body.easy .watch-item .wi-route{font-size:1.5rem;}
-  body.easy .watch-item .wi-sub{font-size:1.1rem;color:var(--text-dim);white-space:normal;}
-  body.easy .watch-item .wi-check{width:2.2rem;height:2.2rem;font-size:1.3rem;border:2px solid var(--line);}
-  body.easy .watch-item .wi-del,
-  body.easy .watch-item .wi-link,
-  body.easy .watch-item .wi-cfg{width:3rem;height:3rem;font-size:1.3rem;}
-  body.easy .watch-item .wi-del,
-  body.easy .watch-item .wi-link{border:2px solid var(--line);}
-  body.easy.ez-light .watch-item .wi-del{background:rgba(0,0,0,0.1);color:#000;}
-  body.easy.ez-light .watch-item .wi-link,
-  body.easy.ez-light .watch-item .wi-check,
-  body.easy.ez-light .speak-btn{color:#000;}
-  body.easy .select-bar .sb-count{font-size:1.1rem;}
-  body.easy .select-bar button{font-size:1.1rem;padding:.7rem 1rem;}
-  body.easy .cfg-row{font-size:1.15rem;}
-  body.easy .cfg-row input{width:1.7rem;height:1.7rem;}
-  body.easy #configOverlay .btn,
-  body.easy #sayOverlay .btn{font-size:1.25rem;padding:.9rem;max-width:30rem;}
-  body.easy #configOverlay .so-close,
-  body.easy #sayOverlay .so-close,
-  body.easy #speakOverlay .so-close{font-size:1.25rem;color:var(--text);text-decoration:underline;}
-  body.easy #configOverlay .so-title{font-size:1.8rem;}
-  body.easy #configOverlay .voice-note{font-size:1.05rem;}
-  body.easy #configOverlay textarea{font-size:1.1rem;border:2px solid var(--line);}
-  body.easy #configPickList{border:2px solid var(--line);}
-  body.easy #toast{font-size:1.2rem;}
-  body.easy #speakOverlay,
-  body.easy #sayOverlay,
-  body.easy #configOverlay{background:var(--bg);}
-  body.easy #speakOverlay .so-title,
-  body.easy #sayOverlay .so-title{font-size:2rem;}
-  body.easy #speakOverlay .so-big,
-  body.easy #sayOverlay .so-big{font-size:1.8rem;}
-  body.easy .say-text{font-size:1.2rem;}
+  /* 設定畫面頂部嘅「顯示設定」卡 */
+  .display-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;display:flex;flex-direction:column;gap:8px;
+  }
+  .display-card .dc-title{font-size:calc(16.5px * var(--fs));font-weight:700;color:var(--text);}
+  .display-card .dc-label{font-size:calc(13.5px * var(--fs));color:var(--text-dim);}
+  .seg{display:flex;gap:8px;}
+  .seg-btn{
+    flex:1 1 0;min-width:0;padding:11px 6px;border-radius:10px;
+    border:1px solid var(--line);background:var(--panel-2);color:var(--text-dim);
+    font-size:calc(16px * var(--fs));font-weight:700;font-family:var(--font-body);cursor:pointer;
+  }
+  .seg-btn[aria-checked="true"]{background:var(--amber);border-color:var(--amber);color:#0B0D0F;}
   #toast{
     position:fixed;left:50%;transform:translateX(-50%);
     bottom:calc(24px + env(safe-area-inset-bottom));z-index:60;display:none;
     background:var(--panel-2);border:1px solid var(--line);color:var(--text);
-    padding:11px 16px;border-radius:12px;font-size:14.5px;max-width:90%;text-align:center;
+    padding:11px 16px;border-radius:12px;font-size:calc(14.5px * var(--fs));max-width:90%;text-align:center;
   }
 </style>
+<script>
+// 一開頁就即刻套用字體大小／配色（同下面「顯示設定」用同一個儲存位置），
+// 避免揀咗白天配色嘅人每次開頁都先見到一閃黑底。
+(function(){try{
+  var p = JSON.parse(localStorage.getItem("multicitybus.display") || "null");
+  if (!p) return;
+  var r = document.documentElement;
+  if (p.fs === "l" || p.fs === "xl") r.setAttribute("data-fs", p.fs);
+  if (p.theme === "light"){
+    r.setAttribute("data-theme", "light");
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute("content", "#F2F3F5");
+  }
+}catch(e){}})();
+</script>
 </head>
 <body>
 <div id="app">
@@ -607,24 +533,16 @@
         <button class="icon-btn" id="speakAllBtn" title="廣東話播報到站時間" aria-label="播報">🗣️</button>
         <button class="icon-btn" id="backToAllBtn" title="返回全部路線" style="display:none;">☰</button>
         <button class="icon-btn" id="refreshBtn" title="立即刷新">⟳</button>
-        <button class="icon-btn" id="easyToggleBtn" title="輕鬆檢視（大字、高對比）" aria-label="輕鬆檢視">👁</button>
         <button class="icon-btn" id="manageBtn" title="管理追蹤">⚙</button>
       </div>
     </header>
-    <!-- 輕鬆檢視工具列：只喺輕鬆檢視模式顯示 -->
-    <div class="easy-bar" id="easyBar">
-      <button class="ez-btn" id="ezSmallerBtn" aria-label="縮細字體">A－</button>
-      <button class="ez-btn" id="ezBiggerBtn" aria-label="放大字體">A＋</button>
-      <button class="ez-btn" id="ezThemeBtn" aria-label="切換黑底或米黃底">🌓 底色</button>
-      <button class="ez-btn" id="ezExitBtn" aria-label="返回標準檢視">標準</button>
-    </div>
     <main>
       <div class="updated-row">
         <span id="watchCountLabel"></span>
         <span id="updatedLabel">—</span>
       </div>
       <div class="filter-hint" id="filterHint" style="display:none;"></div>
-      <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:15px;">🗣️ 複製「撳一下播報」網址</button>
+      <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:calc(15px * var(--fs));">🗣️ 複製「撳一下播報」網址</button>
       <div class="group-list" id="groupList"></div>
     </main>
     <footer>資料來源：data.gov.hk（KMB）／ Transport for London（TfL）</footer>
@@ -641,8 +559,23 @@
 
     <!-- 管理清單 -->
     <div class="flow-step active" id="step-manage">
+      <!-- 顯示設定：字體大小／配色（即時生效，記住你嘅選擇） -->
+      <div class="display-card" id="displayCard">
+        <div class="dc-title">顯示設定</div>
+        <div class="dc-label">字體大小</div>
+        <div class="seg" role="radiogroup" aria-label="字體大小">
+          <button class="seg-btn" data-pick-fs="std" role="radio" aria-checked="true">標準</button>
+          <button class="seg-btn" data-pick-fs="l" role="radio" aria-checked="false">大</button>
+          <button class="seg-btn" data-pick-fs="xl" role="radio" aria-checked="false">特大</button>
+        </div>
+        <div class="dc-label">配色</div>
+        <div class="seg" role="radiogroup" aria-label="配色">
+          <button class="seg-btn" data-pick-theme="light" role="radio" aria-checked="false">☀️ 白天</button>
+          <button class="seg-btn" data-pick-theme="dark" role="radio" aria-checked="true">🌙 晚上</button>
+        </div>
+      </div>
       <p class="flow-sub">撳路線右邊嘅 🔗 可以攞到嗰條路線專屬嘅網址；撳「揀幾條砌埋一個捷徑」可以自訂一個捷徑包含你想要嘅幾條路線。跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</p>
-      <p class="flow-sub" style="font-size:14.5px;">撳 📄 會複製嗰條路線喺 config_bus.txt 入面嘅一行；下面「產生 config_bus.txt」可以剔選路線，一次過砌好。</p>
+      <p class="flow-sub" style="font-size:calc(14.5px * var(--fs));">撳 📄 會複製嗰條路線喺 config_bus.txt 入面嘅一行；下面「產生 config_bus.txt」可以剔選路線，一次過砌好。</p>
       <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
       <div class="select-bar" id="selectBar">
         <span class="sb-count" id="selectCount">已揀 0 條</span>
@@ -838,52 +771,53 @@
 
   const urlParams = new URLSearchParams(location.search);
 
-  // ===================== 輕鬆檢視（大字、高對比，方便視力唔好嘅人）=====================
-  // 只係加一層「外觀」：用 body 嘅 class 覆蓋樣式，唔會改動任何查詢、播報、設定嘅功能。
+  // ===================== 顯示設定：字體大小／配色 =====================
+  // 只係加一層「外觀」：揀咗嘅選項寫落 <html> 嘅 data-fs／data-theme 屬性，
+  // 由 CSS 負責變樣，唔會改動任何查詢、播報、設定嘅功能。
   // 偏好存喺獨立嘅 localStorage key，唔會影響原有設定資料。
-  // 網址加 ?easy=1 可以直接用輕鬆檢視打開（?easy=0 就強制用標準檢視）。
-  const EASY_KEY = "multicitybus.easy";
-  const EASY_FONT_PX = [18, 21, 25, 30];     // 4 級基準字體（px）
-  const easyPrefs = { on: false, size: 1, theme: "dark" };
+  // （<head> 入面有一小段提早套用嘅 script，用同一個 key，避免開頁閃一下。）
+  const DISPLAY_KEY = "multicitybus.display";
+  const FS_LEVELS = ["std", "l", "xl"];     // 標準／大／特大
+  const THEMES = ["dark", "light"];         // 晚上（原本套色）／白天（中性）
+  const displayPrefs = { fs: "std", theme: "dark" };
   try{
-    const rawEasy = localStorage.getItem(EASY_KEY);
-    if (rawEasy){
-      const pe = JSON.parse(rawEasy);
-      easyPrefs.on = pe.on === true;
-      if (Number.isInteger(pe.size) && pe.size >= 0 && pe.size < EASY_FONT_PX.length) easyPrefs.size = pe.size;
-      if (pe.theme === "light") easyPrefs.theme = "light";
+    const rawDisplay = localStorage.getItem(DISPLAY_KEY);
+    if (rawDisplay){
+      const pd = JSON.parse(rawDisplay);
+      if (pd && FS_LEVELS.includes(pd.fs)) displayPrefs.fs = pd.fs;
+      if (pd && THEMES.includes(pd.theme)) displayPrefs.theme = pd.theme;
     }
   }catch(e){}
-  const easyParam = urlParams.get("easy");
-  if (easyParam === "1") easyPrefs.on = true;
-  else if (easyParam === "0") easyPrefs.on = false;
-  function saveEasy(){
-    try{ localStorage.setItem(EASY_KEY, JSON.stringify(easyPrefs)); }catch(e){}
+  // 舊版「輕鬆檢視」已經刪除，順手清走佢留低嘅偏好
+  try{ localStorage.removeItem("multicitybus.easy"); }catch(e){}
+  function saveDisplay(){
+    try{ localStorage.setItem(DISPLAY_KEY, JSON.stringify(displayPrefs)); }catch(e){}
   }
-  function applyEasy(){
-    const light = easyPrefs.on && easyPrefs.theme === "light";
-    document.body.classList.toggle("easy", easyPrefs.on);
-    document.body.classList.toggle("ez-light", light);
-    document.documentElement.style.fontSize = easyPrefs.on ? EASY_FONT_PX[easyPrefs.size] + "px" : "";
+  function applyDisplay(){
+    const root = document.documentElement;
+    if (displayPrefs.fs === "std") root.removeAttribute("data-fs");
+    else root.setAttribute("data-fs", displayPrefs.fs);
+    const light = displayPrefs.theme === "light";
+    if (light) root.setAttribute("data-theme", "light");
+    else root.removeAttribute("data-theme");
     const tc = document.querySelector('meta[name="theme-color"]');
-    if (tc) tc.setAttribute("content", light ? "#FFF3C4" : "#0B0D0F");
-    els.easyToggleBtn.classList.toggle("speaking", easyPrefs.on);
-    els.ezSmallerBtn.disabled = easyPrefs.size <= 0;
-    els.ezBiggerBtn.disabled = easyPrefs.size >= EASY_FONT_PX.length - 1;
+    if (tc) tc.setAttribute("content", light ? "#F2F3F5" : "#0B0D0F");
+    els.displayCard.querySelectorAll("[data-pick-fs]").forEach(b => {
+      b.setAttribute("aria-checked", String(b.dataset.pickFs === displayPrefs.fs));
+    });
+    els.displayCard.querySelectorAll("[data-pick-theme]").forEach(b => {
+      b.setAttribute("aria-checked", String(b.dataset.pickTheme === displayPrefs.theme));
+    });
   }
-  els.easyToggleBtn.addEventListener("click", () => { easyPrefs.on = !easyPrefs.on; saveEasy(); applyEasy(); });
-  els.ezExitBtn.addEventListener("click", () => { easyPrefs.on = false; saveEasy(); applyEasy(); });
-  els.ezBiggerBtn.addEventListener("click", () => {
-    if (easyPrefs.size < EASY_FONT_PX.length - 1){ easyPrefs.size++; saveEasy(); applyEasy(); }
+  els.displayCard.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.pickFs && FS_LEVELS.includes(btn.dataset.pickFs)) displayPrefs.fs = btn.dataset.pickFs;
+    else if (btn.dataset.pickTheme && THEMES.includes(btn.dataset.pickTheme)) displayPrefs.theme = btn.dataset.pickTheme;
+    else return;
+    saveDisplay(); applyDisplay();
   });
-  els.ezSmallerBtn.addEventListener("click", () => {
-    if (easyPrefs.size > 0){ easyPrefs.size--; saveEasy(); applyEasy(); }
-  });
-  els.ezThemeBtn.addEventListener("click", () => {
-    easyPrefs.theme = easyPrefs.theme === "light" ? "dark" : "light";
-    saveEasy(); applyEasy();
-  });
-  applyEasy();
+  applyDisplay();
 
   let focusWatches = null;
   let dataParamInvalid = false;   // 有 ?d= 但完全冇可用資料
@@ -2042,8 +1976,6 @@
 
       const cardEl = document.createElement("div");
       cardEl.className = "group-card";
-      cardEl.dataset.leg = card.leg;   // 輕鬆檢視用嚟顯示「去程／回程」同城市旗幟
-      cardEl.dataset.city = card.city;
       // 每個追蹤只喺「去程」卡放一個播報掣，播報時會同時讀去程同回程
       const speakBtnHtml = (SPEECH_OK && card.leg === "outbound")
         ? '<button class="speak-btn' + (speechActive ? " speaking" : "") + '" title="播報呢條路線" aria-label="播報">' + (speechActive ? "⏹" : "🗣️") + '</button>'
