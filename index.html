@@ -176,6 +176,9 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .g-row.top .dest{color:var(--text);font-weight:600;}
+  /* 冇班次嘅路線：路線號碼照顯示，但淡啲，旁邊寫「暫無班次」 */
+  .g-row.none .route-badge{opacity:0.55;}
+  .g-row.none .dest{color:var(--text-faint);font-weight:500;}
 
   .eta{
     flex-shrink:0;
@@ -475,6 +478,7 @@
   :root[data-fs] .g-row .route-badge{order:1;}
   :root[data-fs] .g-row .eta{order:2;margin-left:auto;white-space:nowrap;}
   :root[data-fs] .g-row .dest{order:3;flex:1 0 100%;white-space:normal;overflow:visible;text-overflow:clip;}
+  :root[data-fs] .g-row.none .dest{order:2;flex:1 1 0;}   /* 冇班次嗰行：「暫無班次」留喺路線號碼旁邊，唔使跳去下一行 */
   :root[data-fs] .watch-item{flex-wrap:wrap;}
   :root[data-fs] .watch-item .wi-main{flex:1 0 100%;}
   :root[data-fs] .watch-item .wi-check + .wi-main{flex:1 1 0;}   /* 揀選模式（冇掣）：剔選框同文字同一行 */
@@ -926,8 +930,9 @@
     try{
       const res = await fetchJSON(tflAppendAuth("https://api.tfl.gov.uk/StopPoint/" + encodeURIComponent(stopId) + "/Arrivals"));
       const data = Array.isArray(res) ? res : [];
-      return data
-        .filter(item => routes.some(r => r.toLowerCase() === (item.lineId||"").toLowerCase()))
+      const matched = data
+        .filter(item => routes.some(r => r.toLowerCase() === (item.lineId||"").toLowerCase()));
+      const out = matched
         .map(item => ({
           route: item.lineName || item.lineId,
           dest: item.destinationName || item.towards || "",
@@ -935,6 +940,10 @@
         }))
         .sort((a,b) => a.mins - b.mins)
         .slice(0, MAX_PER_WATCH);
+      // 喺 slice 之前記低「邊啲路線其實有班次」：畫面要靠佢分得清
+      // 「真係冇班次」同「有班次但排咗喺最近 3 班之外」，唔可以淨係睇顯示出嚟嗰幾班
+      out.seenRoutes = matched.map(item => (item.lineId || "").toLowerCase());
+      return out;
     }catch(e){ return null; }   // null = 讀取失敗（同「冇班次」嘅 [] 分開）
   }
 
@@ -999,16 +1008,19 @@
       const res = await fetchJSON("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/" + encodeURIComponent(stopId));
       const data = (res && res.data) ? res.data : [];
       const now = new Date();
-      return data
+      const upcoming = data
         .filter(item => routes.includes(item.route) && item.eta && item.dir === expectedDir)
         .map(item => ({
           route: item.route,
           dest: item.dest_tc || "",
           mins: Math.round((new Date(item.eta) - now) / 60000),
         }))
-        .filter(item => Number.isFinite(item.mins) && item.mins >= -1)
+        .filter(item => Number.isFinite(item.mins) && item.mins >= -1);
+      const out = upcoming
         .sort((a,b) => a.mins - b.mins)
         .slice(0, MAX_PER_WATCH);
+      out.seenRoutes = upcoming.map(item => String(item.route).toLowerCase());   // 見 TfL 嗰段嘅解釋
+      return out;
     }catch(e){ return null; }   // null = 讀取失敗
   }
 
@@ -1857,9 +1869,11 @@
       buses = await tflFetchArrivalsForStop(watch.routes, legInfo.stopId);
     }
     if (buses === null) return null;   // 讀取失敗，交畀 refreshData 顯示
-    return buses.map(b => Object.assign({}, b, { color: colorForWatchIndex(idx) }));
     // 注意：buses 入面已經由 kmbFetchArrivalsForStop / tflFetchArrivalsForStop
     // 按 mins 由細到大排好，即係「先到先排」，呢個排序喺呢一層已經做妥
+    const out = buses.map(b => Object.assign({}, b, { color: colorForWatchIndex(idx) }));
+    out.seenRoutes = buses.seenRoutes || buses.map(b => String(b.route).toLowerCase());
+    return out;
   }
 
   let lastUpdatedText = "";   // 最近一次成功更新嘅時間
@@ -1961,6 +1975,8 @@
         leg: c.leg,
         watchId: c.watch.id,
         stopName: (c.watch[c.leg] && c.watch[c.leg].stopName) || "",
+        routes: c.watch.routes,                    // 呢個追蹤包含嘅全部路線（冇班次都要顯示出嚟）
+        color: colorForWatchIndex(c.idx),
         buses,
       };
     }));
@@ -1985,9 +2001,6 @@
       if (card.buses === null){
         failCount++;
         rowsHtml = '<div class="g-empty err">⚠️ 讀取失敗，請檢查網絡後再刷新</div>';
-      } else if (card.buses.length === 0){
-        okCount++;
-        rowsHtml = '<div class="g-empty">暫無班次</div>';
       } else {
         okCount++;
         card.buses.forEach((b, i) => {
@@ -2001,6 +2014,17 @@
               '<span class="eta">' + timeLabel + timeSuffix + '</span>' +
             '</div>';
         });
+        // 冇班次嘅路線：路線號碼照樣顯示，旁邊寫「暫無班次」，唔好成條路線消失。
+        // 「有冇班次」睇 seenRoutes（slice 之前嘅結果），所以有班次但排喺最近 3 班之外嘅路線唔會被錯報成冇班次
+        const seen = new Set((card.buses.seenRoutes || card.buses.map(b => b.route)).map(r => String(r).toLowerCase()));
+        card.routes.filter(r => !seen.has(String(r).toLowerCase())).forEach(r => {
+          rowsHtml +=
+            '<div class="g-row none">' +
+              '<span class="route-badge" style="background:' + card.color + '">' + escapeHtml(String(r).toUpperCase()) + '</span>' +
+              '<span class="dest">暫無班次</span>' +
+            '</div>';
+        });
+        if (rowsHtml === "") rowsHtml = '<div class="g-empty">暫無班次</div>';   // 後備（理論上唔會用到）
       }
 
       cardEl.innerHTML =
