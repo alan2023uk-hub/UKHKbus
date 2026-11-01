@@ -608,6 +608,7 @@
       <div class="stop-list" id="manageList"></div>
       <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
       <button class="btn btn-ghost" id="configFileBtn" style="display:none;">📄 產生 config_bus.txt（可揀路線）</button>
+      <button class="btn btn-ghost" id="homeClipsBtn" style="display:none;">📲 一次過加到主畫面（用捷徑）</button>
       <details id="voiceDetails">
         <summary id="voiceSummary">播報語音設定</summary>
         <div class="adv-fields">
@@ -706,9 +707,10 @@
 <!-- 產生 config_bus.txt：揀路線 → 砌成 Scriptable 播報腳本用嘅設定檔 -->
 <div id="configOverlay">
   <div class="cfg-panel" id="configPick">
-    <div class="so-title">📄 揀路線</div>
-    <div class="voice-note">剔選要放入 config_bus.txt 嘅路線（預設全選）。選單會自動排好：倫敦先、香港後，各組按路線號碼由小到大。</div>
+    <div class="so-title" id="configPickTitle">📄 揀路線</div>
+    <div class="voice-note" id="configPickNote">剔選要放入 config_bus.txt 嘅路線（預設全選）。選單會自動排好：倫敦先、香港後，各組按路線號碼由小到大。</div>
     <div id="configPickList"></div>
+    <a class="btn btn-ghost" id="homeShortcutInstall" href="#" style="display:none;text-align:center;text-decoration:none;">⬇️ 未裝捷徑？先安裝（只需一次）</a>
     <button class="btn btn-ghost" id="configToggleAllBtn">全不選</button>
     <button class="btn btn-primary" id="configMakeBtn">產生</button>
     <button class="so-close" id="configCloseBtn2">關閉</button>
@@ -1462,6 +1464,97 @@
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
+  // ===================== 一次過加到主畫面（Web Clip 描述檔 + iOS 捷徑）=====================
+  // Safari 唔准網頁自己「加入主畫面」，但 iOS 設定描述檔可以一次過建立多個 Web Clip 圖示。
+  // 流程：網頁砌好 .mobileconfig（base64）→ 放入剪貼簿 → 開捷徑 HOME_SHORTCUT_NAME →
+  //       捷徑用 Safari 開 data:application/x-apple-aspen-config;base64,<剪貼簿> →
+  //       用家喺 Safari 撳「允許」，再去「設定」→「已下載描述檔」→「安裝」。
+  // （網頁自己唔可以直接導航去 data: 網址，所以要經捷徑；iOS 規定安裝描述檔一定要用家確認，冇得全自動。）
+  // 描述檔識別碼固定：重新執行會取代舊嗰批圖示（唔會越積越多）；FullScreen=false，圖示開 Safari 分頁，
+  // 同原本手動「加入主畫面」一樣，每個圖示各自記住自己嗰條網址。
+  const HOME_SHORTCUT_NAME = "UKHKbus加主畫面";   // 要同「捷徑」App 入面嗰個捷徑名一模一樣
+  const HOME_SHORTCUT_ICLOUD = "";                 // 捷徑嘅 iCloud 分享連結；填咗，未裝捷徑嘅人就會見到安裝掣
+  const WEBCLIP_ID = "hk.ukhkbus.webclips";
+  let configPickMode = "file";                     // "file" = 產生 config_bus.txt；"clips" = 加到主畫面
+  let homeIconB64 = "";
+  let homeIconLoading = false;
+  const PICK_TITLE_FILE = "📄 揀路線";
+  const PICK_NOTE_FILE = "剔選要放入 config_bus.txt 嘅路線（預設全選）。選單會自動排好：倫敦先、香港後，各組按路線號碼由小到大。";
+  const PICK_TITLE_CLIPS = "📲 揀要加到主畫面嘅路線";
+  const PICK_NOTE_CLIPS = "剔選要加到主畫面嘅路線（預設全選）。撳「加到主畫面」後會跳去「捷徑」：Safari 彈出提示就揀「允許」，再去「設定」頂部撳「已下載描述檔」→「安裝」，所有圖示就會一次過出現喺主畫面。";
+
+  function xmlEscape(str){
+    return String(str).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"
+    }[c]));
+  }
+  // 由字串砌固定 UUID（同一條路線每次都一樣）
+  function uuidFrom(str){
+    let hex = "";
+    for (let seed = 0; seed < 4; seed++){
+      let h = (0x811c9dc5 ^ Math.imul(seed + 1, 0x9e3779b1)) >>> 0;
+      for (let i = 0; i < str.length; i++){
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      hex += ("00000000" + h.toString(16)).slice(-8);
+    }
+    return (hex.slice(0,8) + "-" + hex.slice(8,12) + "-4" + hex.slice(13,16) + "-8" + hex.slice(17,20) + "-" + hex.slice(20,32)).toUpperCase();
+  }
+  async function loadHomeIconBase64(){
+    try{
+      const link = document.querySelector('link[rel="apple-touch-icon"]');
+      const r = await fetch(link ? link.href : "icon-192.png");
+      if (!r.ok) return "";
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000){
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      }
+      return btoa(bin);
+    }catch(e){ return ""; }
+  }
+  function buildWebClipProfile(items, iconB64){
+    const clips = items.map(it =>
+      "<dict>" +
+        (iconB64 ? "<key>Icon</key><data>" + iconB64 + "</data>" : "") +
+        "<key>FullScreen</key><false/>" +
+        "<key>IsRemovable</key><true/>" +
+        "<key>Label</key><string>" + xmlEscape(it.label) + "</string>" +
+        "<key>PayloadDisplayName</key><string>" + xmlEscape(it.label) + "</string>" +
+        "<key>PayloadIdentifier</key><string>" + WEBCLIP_ID + ".clip." + xmlEscape(it.id) + "</string>" +
+        "<key>PayloadType</key><string>com.apple.webClip.managed</string>" +
+        "<key>PayloadUUID</key><string>" + uuidFrom("clip:" + it.id) + "</string>" +
+        "<key>PayloadVersion</key><integer>1</integer>" +
+        "<key>Precomposed</key><true/>" +
+        "<key>URL</key><string>" + xmlEscape(it.url) + "</string>" +
+      "</dict>").join("");
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n' +
+      '<plist version="1.0"><dict>' +
+        "<key>PayloadContent</key><array>" + clips + "</array>" +
+        "<key>PayloadDescription</key><string>將揀咗嘅巴士路線加到主畫面</string>" +
+        "<key>PayloadDisplayName</key><string>UKHKbus 主畫面路線</string>" +
+        "<key>PayloadIdentifier</key><string>" + WEBCLIP_ID + "</string>" +
+        "<key>PayloadRemovalDisallowed</key><false/>" +
+        "<key>PayloadType</key><string>Configuration</string>" +
+        "<key>PayloadUUID</key><string>" + uuidFrom("profile:" + WEBCLIP_ID) + "</string>" +
+        "<key>PayloadVersion</key><integer>1</integer>" +
+      "</dict></plist>\n";
+  }
+  async function runHomeClips(list){
+    const items = sortWatchesForConfig(list).map(w => ({
+      id: w.id,
+      label: w.routes.join("、") + " 巴士",    // 同手動加入時嘅圖示名稱一樣
+      url: watchViewUrl([w.id])               // 同 🔗 打開嘅獨立頁面網址一樣
+    }));
+    const ok = await copyText(toBase64Unicode(buildWebClipProfile(items, homeIconB64)));
+    if (!ok){ showToast("複製唔到，未能交畀捷徑"); return; }
+    closeConfigOverlay();
+    showToast("已交畀捷徑，請跟畫面提示做");
+    location.href = "shortcuts://run-shortcut?name=" + encodeURIComponent(HOME_SHORTCUT_NAME);
+  }
+
   // ----- 揀路線（剔選方格）-----
   function configPickBoxes(){
     return Array.from(els.configPickList.querySelectorAll("input[type=checkbox]"));
@@ -1469,13 +1562,24 @@
   function updateConfigPickState(){
     const boxes = configPickBoxes();
     const picked = boxes.filter(b => b.checked).length;
-    els.configMakeBtn.textContent = picked > 0 ? "產生（已揀 " + picked + " 條）" : "產生";
+    const makeVerb = configPickMode === "clips" ? "加到主畫面" : "產生";
+    els.configMakeBtn.textContent = picked > 0 ? makeVerb + "（已揀 " + picked + " 條）" : makeVerb;
     els.configMakeBtn.disabled = picked === 0;
     els.configMakeBtn.style.opacity = picked === 0 ? "0.4" : "1";
     els.configToggleAllBtn.textContent = (boxes.length > 0 && picked === boxes.length) ? "全不選" : "全選";
   }
-  function openConfigPicker(){
+  function openConfigPicker(mode){
     if (settings.watches.length === 0) return;
+    configPickMode = mode === "clips" ? "clips" : "file";
+    const clips = configPickMode === "clips";
+    els.configPickTitle.textContent = clips ? PICK_TITLE_CLIPS : PICK_TITLE_FILE;
+    els.configPickNote.textContent = clips ? PICK_NOTE_CLIPS : PICK_NOTE_FILE;
+    els.homeShortcutInstall.style.display = (clips && HOME_SHORTCUT_ICLOUD) ? "block" : "none";
+    if (clips && HOME_SHORTCUT_ICLOUD) els.homeShortcutInstall.href = HOME_SHORTCUT_ICLOUD;
+    if (clips && !homeIconB64 && !homeIconLoading){      // 預先載入圖示，等撳掣嗰刻可以即刻複製（唔會失去用戶手勢）
+      homeIconLoading = true;
+      loadHomeIconBase64().then(b => { homeIconB64 = b; homeIconLoading = false; });
+    }
     els.configPickList.innerHTML = "";
     sortWatchesForConfig(settings.watches).forEach(w => {
       const label = document.createElement("label");
@@ -1496,7 +1600,8 @@
     els.configResult.style.display = "none";
     els.configOverlay.style.display = "flex";
   }
-  els.configFileBtn.addEventListener("click", openConfigPicker);
+  els.configFileBtn.addEventListener("click", () => openConfigPicker("file"));
+  els.homeClipsBtn.addEventListener("click", () => openConfigPicker("clips"));
   els.configToggleAllBtn.addEventListener("click", () => {
     const boxes = configPickBoxes();
     const allOn = boxes.length > 0 && boxes.every(b => b.checked);
@@ -1507,6 +1612,7 @@
     const ids = new Set(configPickBoxes().filter(b => b.checked).map(b => b.dataset.id));
     const list = settings.watches.filter(w => ids.has(w.id));
     if (list.length === 0) return;
+    if (configPickMode === "clips"){ runHomeClips(list); return; }
     els.configText.value = buildConfigText(list);
     els.configPick.style.display = "none";
     els.configResult.style.display = "flex";
@@ -1768,6 +1874,7 @@
     els.manageEmptyHint.style.display = settings.watches.length === 0 ? "block" : "none";
     updateSelectBar();
     els.configFileBtn.style.display = (IS_IOS && settings.watches.length > 0) ? "block" : "none";
+    els.homeClipsBtn.style.display = (IS_IOS && settings.watches.length > 0) ? "block" : "none";
     settings.watches.forEach((w, idx) => {
       const div = document.createElement("div");
       div.className = "watch-item" + (selectMode && selectedIds.has(w.id) ? " selected" : "");
