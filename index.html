@@ -415,7 +415,6 @@
     background:var(--panel);border:1px solid var(--line);border-radius:12px;
     padding:12px 14px 12px 34px;font-size:calc(15px * var(--fs));line-height:1.7;color:var(--text);
   }
-  #homeOverlay .btn{max-width:340px;padding:13px;font-size:calc(16px * var(--fs));}
   #homeOverlay .so-close{
     background:transparent;border:none;color:var(--text-dim);font-size:calc(16px * var(--fs));
     font-family:var(--font-body);cursor:pointer;padding:8px;
@@ -729,7 +728,6 @@
   <div class="so-title" id="homeTitle">📲 加到桌面</div>
   <div class="voice-note" id="homeLead"></div>
   <ol class="home-steps" id="homeSteps"></ol>
-  <button class="btn btn-primary" id="homeCopyBtn">🔗 複製連結</button>
   <button class="so-close" id="homeCloseBtn">關閉</button>
 </div>
 <div id="toast"></div>
@@ -1674,18 +1672,17 @@
 
   // ===================== 加到桌面（獨立路線頁面）=====================
   // 網頁唔可以自己將連結加到主畫面／桌面（瀏覽器嘅安全限制），所以呢粒掣：
-  // 顯示說明層，列出呢部機下一步點做，並可以複製連結。
+  // 顯示純文字說明層，列出呢部機下一步點做（網頁自己加唔到，所以冇其他掣）。
   // （唔再叫分享選單：iPhone 嘅網址分享選單入面冇「加入主畫面」，要用 Safari 自己嘅「…」→「共享」。）
   // 加入嘅網址係呢條路線專屬嘅 ?d=... 網址，所以呢粒掣只喺獨立路線頁面出現。
-  function currentRouteUrl(){
-    const u = new URL(location.href);
-    u.searchParams.delete("speak");   // 唔好將「撳一下播報」嘅參數一齊加入主畫面
-    u.searchParams.delete("say");
-    u.hash = "";
-    return u.toString();
-  }
   // 手機（iPhone／iPad、Android）叫「點樣加到主畫面」，電腦叫「加到桌面／書籤」
   function homeBtnLabel(){ return (IS_IOS || IS_ANDROID) ? "📲 點樣加到主畫面" : "📲 加到桌面／書籤"; }
+  // 說明層標題：直接講明要用邊個功能加入（呢個網頁自己加唔到）
+  function homeTitleText(){
+    if (IS_IOS) return "用 Safari「共享」加入主畫面";
+    if (IS_ANDROID) return "用瀏覽器選單加到主畫面";
+    return "用書籤或「建立捷徑」放到桌面";
+  }
   function homeStepsFor(){
     if (IS_IOS) return [
       "撳 Safari 工具列嘅「…」（iPad 係分享圖示），揀「共享」",
@@ -1703,21 +1700,12 @@
     ];
   }
   function showHomeOverlay(){
-    els.homeTitle.textContent = homeBtnLabel();
+    els.homeTitle.textContent = homeTitleText();
     els.homeLead.textContent = "呢個係呢條路線專屬嘅網址，加入之後一撳就開。瀏覽器唔准網頁自動加入，所以要自己做一次：";
     els.homeSteps.innerHTML = homeStepsFor().map(s => "<li>" + escapeHtml(s) + "</li>").join("");
     els.homeOverlay.style.display = "flex";
   }
   els.addToHomeBtn.addEventListener("click", showHomeOverlay);
-  els.homeCopyBtn.addEventListener("click", async () => {
-    const url = currentRouteUrl();
-    try{
-      await navigator.clipboard.writeText(url);
-      showToast("已複製連結");
-    }catch(e){
-      window.prompt("複製呢個網址：", url);
-    }
-  });
   els.homeCloseBtn.addEventListener("click", () => { els.homeOverlay.style.display = "none"; });
 
   // ===================== 畫面切換 =====================
