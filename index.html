@@ -403,6 +403,23 @@
     background:var(--panel);border:1px solid var(--line);border-radius:12px;
     padding:12px;font-size:calc(15px * var(--fs));line-height:1.6;color:var(--text);
   }
+  /* ===== 加到桌面：說明層 ===== */
+  #homeOverlay{
+    position:fixed;inset:0;z-index:50;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:var(--overlay);padding:24px;text-align:center;
+  }
+  #homeOverlay .so-title{font-size:calc(24px * var(--fs));font-weight:800;}
+  #homeOverlay .home-steps{
+    width:100%;max-width:340px;text-align:left;margin:0;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px 12px 34px;font-size:calc(15px * var(--fs));line-height:1.7;color:var(--text);
+  }
+  #homeOverlay .btn{max-width:340px;padding:13px;font-size:calc(16px * var(--fs));}
+  #homeOverlay .so-close{
+    background:transparent;border:none;color:var(--text-dim);font-size:calc(16px * var(--fs));
+    font-family:var(--font-body);cursor:pointer;padding:8px;
+  }
   /* ===== 產生 config_bus.txt ===== */
   #configOverlay{
     position:fixed;inset:0;z-index:50;display:none;
@@ -546,6 +563,7 @@
         <span id="updatedLabel">—</span>
       </div>
       <div class="filter-hint" id="filterHint" style="display:none;"></div>
+      <button class="btn btn-primary" id="addToHomeBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:calc(15px * var(--fs));">📲 加到桌面</button>
       <button class="btn btn-ghost" id="copySpeakUrlBtn" style="display:none;margin-bottom:12px;padding:12px;font-size:calc(15px * var(--fs));">🗣️ 複製「撳一下播報」網址</button>
       <div class="group-list" id="groupList"></div>
     </main>
@@ -578,7 +596,7 @@
           <button class="seg-btn" data-pick-theme="dark" role="radio" aria-checked="true">🌙 晚上</button>
         </div>
       </div>
-      <p class="flow-sub">撳路線右邊嘅 🔗 可以攞到嗰條路線專屬嘅網址；撳「揀幾條砌埋一個捷徑」可以自訂一個捷徑包含你想要嘅幾條路線。<span id="homeScreenHint">跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</span></p>
+      <p class="flow-sub">撳路線右邊嘅 🔗 會打開嗰條路線嘅獨立頁面；撳「揀幾條砌埋一個捷徑」可以自訂一個頁面包含你想要嘅幾條路線。<span id="homeScreenHint">跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。</span></p>
       <p class="flow-sub" id="configHint" style="font-size:calc(14.5px * var(--fs));">要攞 config_bus.txt，撳下面「產生 config_bus.txt」，剔選路線後一次過砌好。</p>
       <p class="flow-sub" id="manageEmptyHint" style="display:none;">仲未追蹤緊任何路線。撳下面掣加返第一條。</p>
       <div class="select-bar" id="selectBar">
@@ -593,7 +611,7 @@
       <button class="btn btn-primary" id="addWatchBtn">＋ 新增追蹤</button>
       <button class="btn btn-ghost" id="configFileBtn" style="display:none;">📄 產生 config_bus.txt（可揀路線）</button>
       <details id="voiceDetails">
-        <summary>播報語音設定（粵語／國語／台灣）</summary>
+        <summary id="voiceSummary">播報語音設定</summary>
         <div class="adv-fields">
           <select id="voiceSelect"></select>
           <div class="voice-note" id="voiceInfo"></div>
@@ -707,6 +725,15 @@
     <button class="so-close" id="configCloseBtn">關閉</button>
   </div>
 </div>
+<!-- 加到桌面：網頁唔可以自己加入主畫面（瀏覽器限制），所以用呢個說明層教用家下一步點做 -->
+<div id="homeOverlay">
+  <div class="so-title">📲 加到桌面</div>
+  <div class="voice-note" id="homeLead"></div>
+  <ol class="home-steps" id="homeSteps"></ol>
+  <button class="btn btn-primary" id="homeShareBtn" style="display:none;">📤 分享連結</button>
+  <button class="btn btn-ghost" id="homeCopyBtn">🔗 複製連結</button>
+  <button class="so-close" id="homeCloseBtn">關閉</button>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -744,9 +771,9 @@
   }
   // 「加入主畫面」說明：iPhone／iPad 用 Safari；Android 用瀏覽器選單；電腦就加書籤
   function homeScreenHintText(){
-    if (IS_IOS) return "跟住用 Safari 分享 → 「加入主畫面」，就會建立返嗰個獨立捷徑。";
-    if (IS_ANDROID) return "跟住用瀏覽器選單（⋮）→「加到主畫面」，就會建立返嗰個獨立捷徑。";
-    return "跟住用瀏覽器加書籤（Windows 按 Ctrl+D，Mac 按 ⌘+D），就可以儲存返嗰個獨立網址。";
+    if (IS_IOS) return "跟住喺嗰個獨立頁面撳「📲 加到桌面」，喺分享選單揀「加入主畫面」，就會建立返嗰個獨立捷徑。";
+    if (IS_ANDROID) return "跟住喺嗰個獨立頁面撳「📲 加到桌面」，再跟畫面步驟（瀏覽器選單 ⋮ →「加到主畫面」）。";
+    return "跟住喺嗰個獨立頁面撳「📲 加到桌面」，再跟畫面步驟加書籤或建立捷徑。";
   }
   function applyPlatformUi(){
     els.homeScreenHint.textContent = homeScreenHintText();
@@ -1526,7 +1553,21 @@
       counter[l] = (counter[l] || 0) + 1;
       return l + " (" + counter[l] + ")";
     });
-    let html = '<option value="">自動（粵語優先，其次台灣國語、普通話）</option>';
+    // 提示文字按「呢部機實際有邊幾類語音」砌出嚟，冇台灣國語就唔會提台灣國語
+    const GROUP_SHORT = { yue:"粵語", tw:"台灣國語", cn:"普通話", other:"其他中文" };
+    const availGroups = GROUP_ORDER.filter(g => voices.some(v => voiceGroup(v) === g));
+    const availNames = availGroups.map(g => GROUP_SHORT[g]);
+    els.voiceSummary.textContent = availNames.length > 0
+      ? "播報語音設定（" + availNames.join("／") + "）"
+      : "播報語音設定";
+    const cmnNames = availGroups.filter(g => g !== "yue").map(g => GROUP_SHORT[g]);
+    const modeParts = [];
+    if (availGroups.includes("yue")) modeParts.push("揀粵語會用廣東話口語讀稿");
+    if (cmnNames.length > 0) modeParts.push("揀" + cmnNames.join("／") + "會用國語讀稿");
+    const modeHint = modeParts.length > 0 ? modeParts.join("，") + "。" : "";
+    let html = '<option value="">' + (availNames.length > 1
+      ? "自動（" + availNames[0] + "優先，其次" + availNames.slice(1).join("、") + "）"
+      : "自動") + '</option>';
     GROUP_ORDER.forEach(g => {
       const items = voices.map((v, i) => ({ v, i })).filter(x => voiceGroup(x.v) === g);
       if (!items.length) return;
@@ -1538,7 +1579,7 @@
     els.voiceSelect.value = settings.voiceUri || "";
     if (els.voiceSelect.value !== (settings.voiceUri || "")) els.voiceSelect.value = "";
     els.voiceInfo.textContent = voices.length > 0
-      ? "每個地區各列一個語音（只會列出你部機已安裝嘅）。揀粵語會用廣東話口語讀稿，揀台灣／普通話會用國語讀稿。"
+      ? "每個地區各列一個語音（只會列出你部機已安裝嘅）。" + modeHint
       : "未搵到中文語音。" + voiceInstallHint(false);
     const rate = effectiveRate();
     els.voiceRate.value = String(rate);
@@ -1653,6 +1694,73 @@
     els.sayOverlay.style.display = "none";
   });
 
+  // ===================== 加到桌面（獨立路線頁面）=====================
+  // 網頁唔可以自己將連結加到主畫面／桌面（瀏覽器嘅安全限制），所以呢粒掣：
+  // 1) iPhone／iPad：直接叫出分享選單，揀「加入主畫面」就得；
+  // 2) 其他裝置（或者叫唔出分享選單）：顯示說明層，列出呢部機下一步點做，並可以複製／分享連結。
+  // 加入嘅網址係呢條路線專屬嘅 ?d=... 網址，所以呢粒掣只喺獨立路線頁面出現。
+  function currentRouteUrl(){
+    const u = new URL(location.href);
+    u.searchParams.delete("speak");   // 唔好將「撳一下播報」嘅參數一齊加入主畫面
+    u.searchParams.delete("say");
+    u.hash = "";
+    return u.toString();
+  }
+  function homeStepsFor(){
+    if (IS_IOS) return [
+      "撳瀏覽器嘅「分享」圖示（方框加向上箭咀）",
+      "喺選單向下撥，揀「加入主畫面」",
+      "撳右上角「加入」"
+    ];
+    if (IS_ANDROID) return [
+      "撳瀏覽器右上角選單（⋮）",
+      "揀「加到主畫面」或「新增至主畫面」（名稱視乎瀏覽器）",
+      "確認名稱後撳「新增」"
+    ];
+    return [
+      "按 Ctrl+D（Mac 按 ⌘+D）將呢個頁面加入書籤",
+      "想放上桌面：Chrome 可以喺瀏覽器選單搵「建立捷徑」（名稱視乎版本）"
+    ];
+  }
+  function showHomeOverlay(){
+    els.homeLead.textContent = "呢個係呢條路線專屬嘅網址，加到桌面之後一撳就開。瀏覽器唔准網頁自動加入，所以要自己做一次：";
+    els.homeSteps.innerHTML = homeStepsFor().map(s => "<li>" + escapeHtml(s) + "</li>").join("");
+    els.homeShareBtn.style.display = (typeof navigator.share === "function") ? "block" : "none";
+    els.homeShareBtn.textContent = IS_IOS ? "📤 開啟分享選單" : "📤 分享連結畀親友";
+    els.homeOverlay.style.display = "flex";
+  }
+  async function shareRouteUrl(){
+    if (typeof navigator.share !== "function") return "fail";
+    try{
+      await navigator.share({ title: document.title, url: currentRouteUrl() });
+      return "ok";
+    }catch(e){
+      return (e && e.name === "AbortError") ? "cancel" : "fail";   // 用戶自己取消唔使當失敗
+    }
+  }
+  els.addToHomeBtn.addEventListener("click", async () => {
+    // iPhone／iPad：分享選單入面有「加入主畫面」。shareRouteUrl 喺撳掣嗰一刻就同步叫 navigator.share，先唔會被瀏覽器攔
+    if (IS_IOS){
+      const r = await shareRouteUrl();
+      if (r !== "fail") return;
+    }
+    showHomeOverlay();
+  });
+  els.homeShareBtn.addEventListener("click", async () => {
+    const r = await shareRouteUrl();
+    if (r === "fail") showToast("呢部裝置叫唔出分享選單，請用下面「複製連結」");
+  });
+  els.homeCopyBtn.addEventListener("click", async () => {
+    const url = currentRouteUrl();
+    try{
+      await navigator.clipboard.writeText(url);
+      showToast("已複製連結");
+    }catch(e){
+      window.prompt("複製呢個網址：", url);
+    }
+  });
+  els.homeCloseBtn.addEventListener("click", () => { els.homeOverlay.style.display = "none"; });
+
   // ===================== 畫面切換 =====================
   function showMain(){
     els["main-screen"].style.display = "flex";
@@ -1709,7 +1817,7 @@
       const checkHtml = selectMode
         ? '<div class="wi-check">' + (selectedIds.has(w.id) ? "✓" : "") + '</div>'
         : "";
-      const linkHtml = selectMode ? "" : '<div class="wi-link" title="攞獨立捷徑網址">🔗</div>';
+      const linkHtml = selectMode ? "" : '<div class="wi-link" title="打開獨立頁面">🔗</div>';
       // 注意：以前每條路線有個 📄 掣可以單獨複製 config_bus.txt 一行，已刪除——
       // 呢個功能已經包含喺下面「產生 config_bus.txt（可揀路線）」入面（剔一條就得），唔使重複
       const delHtml = selectMode ? "" : '<div class="wi-del">✕</div>';
@@ -1975,6 +2083,7 @@
       }
     }
 
+    els.addToHomeBtn.style.display = isFiltered ? "block" : "none";   // 「加到桌面」只喺獨立路線頁面出現
     shownWatches = watchesToShow;
 
     if (watchesToShow.length === 0){
