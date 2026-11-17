@@ -21,7 +21,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((names) =>
       Promise.all(
-        names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))
+        names.filter((n) => n.startsWith("multicitybus-shell-") && n !== CACHE_NAME).map((n) => caches.delete(n))  // 只清自己嘅舊快取：同一個 github.io 網站仲有日誌、LondonBus，唔可以刪佢哋嘅
       )
     )
   );
